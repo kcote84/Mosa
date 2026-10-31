@@ -18,6 +18,8 @@
 
 ## À vérifier avant les cadeaux
 
+Correctif du bouton d'installation : l'offre est retirée dès son utilisation ou l'événement `appinstalled`, et ignorée lorsque Mosa est ouvert en application autonome (y compris `navigator.standalone` sur iOS). Les changements de mode d'affichage sont suivis. Aucun indicateur permanent n'est enregistré : une réinstallation reste possible si le navigateur la propose après une désinstallation. Compilation validée; confirmation sur le téléphone après fermeture et réouverture de Mosa encore nécessaire.
+
 - Installation et maintien de connexion sur un véritable iPhone/Safari et un téléphone Android. Sur iPhone, vérifier que l'ouverture du lien personnel se fait dans la même application installée; la session d'un onglet et celle de la PWA peuvent être distinctes.
 - Photos HEIC réelles, orientation, recadrage et rendu de portraits sur l'écran physique. Le convertisseur HEIC n'est chargé qu'au besoin et produit un fichier compilé assez volumineux.
 - Nuit réelle 23 h–5 h et réveil tactile; luminosité confortable dans une chambre sombre.
