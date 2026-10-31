@@ -15,12 +15,16 @@
 - Second redémarrage avec Wi-Fi confirmé désactivé avant ET après : photos toujours visibles; Wi-Fi réactivé après essai.
 - Gros bouton ENGLISH, passage en anglais et bouton FRANÇAIS.
 - Retour depuis les réglages Wi-Fi testé en français et en anglais; la surcouche disparaît au retour à Mosa.
+- Mises à jour : quatre tests Android couvrant minuit à Toronto, les changements d'heure, le rattrapage et les délais de reprise, les chemins de téléchargement et les limites de taille/compatibilité. Compilation signée et lint sans erreur.
+- Cadre réel : passage USB de 0.1.3 à 0.2.0 avec photos conservées; alarme enregistrée pour minuit à Toronto (04:00 UTC le 1er novembre). Téléchargement automatique de 0.2.1 confirmé à l'écran « prête », après contrôles de taille, empreinte et signature. Ce résultat ne valide pas encore la confirmation dans l'installateur Android.
+- Version finale 0.2.2 publiée, fichier public retéléchargé et empreinte comparée au manifeste; installée sur le cadre de test par USB. Permission d'installation par Mosa laissée en attente de l'autorisation du propriétaire.
 
 ## À vérifier avant les cadeaux
 
 Correctif du bouton d'installation : l'offre est retirée dès son utilisation ou l'événement `appinstalled`, et ignorée lorsque Mosa est ouvert en application autonome (y compris `navigator.standalone` sur iOS). Les changements de mode d'affichage sont suivis. Aucun indicateur permanent n'est enregistré : une réinstallation reste possible si le navigateur la propose après une désinstallation. Compilation validée; confirmation sur le téléphone après fermeture et réouverture de Mosa encore nécessaire.
 
 - Installation et maintien de connexion sur un véritable iPhone/Safari et un téléphone Android. Sur iPhone, vérifier que l'ouverture du lien personnel se fait dans la même application installée; la session d'un onglet et celle de la PWA peuvent être distinctes.
+- Installation d'une version téléchargée avec confirmation Android, annulation puis nouvelle tentative; autorisation de source Mosa à terminer sur le cadre. Le contrôle distant de l'écran n'a pas été disponible pour cette partie de l'essai.
 - Photos HEIC réelles, orientation, recadrage et rendu de portraits sur l'écran physique. Le convertisseur HEIC n'est chargé qu'au besoin et produit un fichier compilé assez volumineux.
 - Nuit réelle 23 h–5 h et réveil tactile; luminosité confortable dans une chambre sombre.
 - Plusieurs jours d'utilisation, coupure d'alimentation physique et récupération après une panne réseau prolongée.

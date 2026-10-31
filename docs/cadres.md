@@ -42,6 +42,35 @@ L'application consomme puis supprime le fichier de préparation. Son accès dura
 - Sur les réglages Wi-Fi : bouton bleu « Revenir aux photos » ou « Back to photos », y compris lorsque le clavier est ouvert.
 - Mode nuit : 23 h à 5 h dans `America/Toronto`; le cadre tient compte du changement d'heure. Toucher l'écran le réveille momentanément.
 - Le QR ouvre la PWA. Le lien personnel d'invitation reste nécessaire pour connecter chaque personne; le QR public n'accorde pas accès à l'album.
+- Le bouton « Mises à jour » fonctionne. Si souhaité, autoriser une fois Mosa à installer ses mises à jour dans les réglages Android; chaque installation demande encore une confirmation.
+
+## Mises à jour à distance
+
+À partir de 0.2.0, chaque cadre recherche et télécharge les nouvelles versions à **00:00 dans le fuseau du cadre** (initialement `America/Toronto`). Une alarme Android est recalculée après redémarrage, remplacement de l'application ou changement d'heure. Les journées de 23/25 heures restent correctes. Sur un Android récent qui refuse les alarmes exactes, l'heure peut être décalée par le système; le modèle testé utilise Android 8.1.
+
+Si Internet était absent à minuit, la prochaine synchronisation réessaie, avec au moins quinze minutes entre les échecs. Un nouveau jour permet une tentative à minuit même si la précédente était à 23:59. L'app vérifie aussi au démarrage si la recherche du jour a été manquée. La vérification ne réveille pas l'écran; le téléchargement ne lance jamais l'installateur pendant la nuit.
+
+Toucher une photo → **Mises à jour** → **Télécharger la dernière version**. Quand elle est prête : **Installer la mise à jour**. Android doit d'abord autoriser Mosa comme source d'installation, puis confirmer la mise à jour. Le cadre n'est pas administrateur de l'appareil : aucune installation silencieuse n'est promise. L'app redémarre après remplacement et conserve ses photos et son attribution.
+
+L'administration mobile propose le téléchargement du fichier destiné aux cadres, ainsi qu'un bouton séparé pour actualiser la PWA sur le téléphone. Télécharger le fichier sur le téléphone n'ordonne pas une installation sur un cadre distant.
+
+Avant installation, le cadre vérifie la taille, SHA-256, l'identité `app.mosa.frame`, la compatibilité Android, une version strictement supérieure et la **même signature** que celle déjà installée. Il refuse les APK débogables. Aucun jeton d'album n'est envoyé au serveur de mises à jour. Seuls les fichiers signés sont publics; ils ne contiennent pas de photos ni d'identifiants familiaux.
+
+### Publier une nouvelle version
+
+1. Augmenter `versionCode` et `versionName` dans `android/app/build.gradle`; ne jamais réutiliser un numéro déjà publié avec un fichier différent.
+2. Compiler et tester avec Java 21 et le SDK Android (build-tools 35.0.0) :
+
+```powershell
+.\android\gradlew.bat -p android :app:testDebugUnitTest :app:assembleRelease :app:lintRelease
+npm run release:frame
+npm run build
+firebase deploy --only hosting --project mosa-506ef
+```
+
+La préparation vérifie la signature de production et crée `web/public/updates/frame.json` ainsi qu'un APK au nom immuable. Garder les anciennes versions dans ce dossier pour les téléchargements en cours. Ces fichiers générés sont exclus de Git. Sur un nouveau PC, les recréer avec la clé sauvegardée avant publication; le contrôle `predeploy` refuse un site compilé dépourvu d'APK cohérent. La distribution utilise Firebase Hosting, sans requête Firestore quotidienne pour les mises à jour.
+
+En cas de défaut, corriger et publier un `versionCode` supérieur. Une rétrogradation Android n'est pas tentée automatiquement. Les cadres antérieurs à 0.2.0 nécessitent une première installation USB pour recevoir ce mécanisme.
 
 Conserver le Wi-Fi de la maison d'installation uniquement pour les essais; ne pas publier son mot de passe. Les destinataires pourront choisir leur propre réseau.
 

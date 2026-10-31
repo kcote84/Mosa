@@ -12,6 +12,7 @@ android/local.properties
 *.jks
 *.keystore
 *.apk
+web/public/updates/
 provisioning*.json
 service-account*.json
 .firebase/

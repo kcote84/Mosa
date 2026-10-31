@@ -50,6 +50,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state); store = new FrameStore(this); preferences = getSharedPreferences("mosa", MODE_PRIVATE);
+        new FrameUpdater(this).reconcile();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); immersive();
         root = new FrameLayout(this); root.setBackgroundColor(Color.BLACK); setContentView(root);
         photoView = new ImageView(this); photoView.setScaleType(ImageView.ScaleType.FIT_CENTER); root.addView(photoView, fill()); photoView.setOnClickListener(v -> toggleControls());
@@ -58,8 +59,11 @@ public class MainActivity extends Activity {
         showWelcome(true);
         handler.postDelayed(() -> { splash = false; loadManifest(store.manifest()); synchronize(); }, 2200);
         handler.post(nightTick);
+        UpdateScheduler.schedule(this);
+        UpdateScheduler.checkIfDue(this);
+        if (getIntent().getBooleanExtra("showUpdates", false)) handler.postDelayed(() -> new UpdateDialog(this).show(), 2500);
         connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        networkCallback = new ConnectivityManager.NetworkCallback() { @Override public void onAvailable(Network n) { handler.postDelayed(() -> { if (!splash) synchronize(); }, 2500); } };
+        networkCallback = new ConnectivityManager.NetworkCallback() { @Override public void onAvailable(Network n) { handler.postDelayed(() -> { if (!splash) { synchronize(); UpdateScheduler.checkIfDue(MainActivity.this); } }, 2500); } };
         try { connectivity.registerDefaultNetworkCallback(networkCallback); } catch (Exception ignored) { }
     }
     private FrameLayout.LayoutParams fill() { return new FrameLayout.LayoutParams(-1, -1); }
@@ -106,6 +110,7 @@ public class MainActivity extends Activity {
             buttons.addView(button(t("L’app sur mon téléphone", "App on my phone"), this::showQr));
             buttons.addView(languageButton());
             welcome.addView(buttons, bp);
+            welcome.addView(button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()));
         }
         root.addView(welcome, fill()); nightCover.bringToFront(); applyNight();
     }
@@ -123,6 +128,8 @@ public class MainActivity extends Activity {
     }
     private void loadManifest(JSONObject value) {
         manifest = value; JSONArray incoming = value.optJSONArray("photos"); photos = incoming == null ? new JSONArray() : incoming;
+        UpdateScheduler.schedule(this);
+        UpdateScheduler.checkIfDue(this);
         JSONObject settings = value.optJSONObject("settings");
         if (settings != null) {
             String remoteLang = settings.optString("locale", "fr");
@@ -170,7 +177,9 @@ public class MainActivity extends Activity {
         buttons.addView(button(t("Photos", "Photos"), this::toggleControls));
         buttons.addView(button("Wi-Fi", this::openWifi)); buttons.addView(button(t("Actualiser", "Refresh"), this::synchronize));
         buttons.addView(button(t("Téléphone", "Phone"), this::showQr)); buttons.addView(languageButton());
-        controls.addView(buttons); FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM); root.addView(controls, p);
+        controls.addView(buttons);
+        controls.addView(button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()));
+        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM); root.addView(controls, p);
     }
     private void openWifi() {
         // This frame's system settings omit Back/Home. Never open a screen without our way back.
@@ -232,6 +241,7 @@ public class MainActivity extends Activity {
     private void immersive() { getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE); }
     @Override protected void onResume() { super.onResume(); stopService(new Intent(this, WifiReturnService.class)); immersive(); if (store != null && !splash) { scheduleSlide(); synchronize(); } }
     @Override protected void onPause() { super.onPause(); handler.removeCallbacks(advance); }
+    @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); if (intent.getBooleanExtra("showUpdates", false)) new UpdateDialog(this).show(); }
     @Override public void onBackPressed() { if (controls != null) toggleControls(); else showControls(); }
     @Override protected void onDestroy() { alive = false; handler.removeCallbacksAndMessages(null); network.shutdownNow(); images.shutdownNow(); try { if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) { } super.onDestroy(); }
 }

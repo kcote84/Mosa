@@ -25,4 +25,4 @@ jobs:
       - name: Parcours API dans les émulateurs
         run: firebase emulators:exec --project demo-mosa --only auth,firestore,storage,functions,hosting 'npm run seed:local && npm run test:integration'
       - name: Compiler l’application cadre
-        run: ./android/gradlew -p android :app:assembleDebug --console=plain
+        run: ./android/gradlew -p android :app:testDebugUnitTest :app:assembleDebug --console=plain

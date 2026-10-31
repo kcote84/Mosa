@@ -1,0 +1,30 @@
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+if (!sdk || !process.env.JAVA_HOME) throw new Error('Définir ANDROID_HOME et JAVA_HOME avant de préparer la publication.');
+const build = join(root, 'android/app/build/outputs/apk/release');
+const metadata = JSON.parse(await readFile(join(build, 'output-metadata.json'), 'utf8'));
+const artifact = metadata.elements?.[0];
+if (metadata.applicationId !== 'app.mosa.frame' || metadata.variantName !== 'release' || metadata.elements.length !== 1 || artifact.outputFile !== 'app-release.apk') throw new Error('Compilation release Mosa requise.');
+const apk = join(build, artifact.outputFile);
+const tools = join(sdk, 'build-tools/35.0.0');
+const certificate = 'dda808e2c38ae942c0087539a2e85d68976f16053630086a36bfa60c48e71409';
+const verification = execFileSync(join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java'), ['-jar', join(tools, 'lib/apksigner.jar'), 'verify', '--print-certs', apk], { encoding: 'utf8', windowsHide: true });
+if (!verification.includes(`Signer #1 certificate SHA-256 digest: ${certificate}`) || verification.includes('Signer #2')) throw new Error('Signature de production Mosa requise.');
+const badging = execFileSync(join(tools, process.platform === 'win32' ? 'aapt.exe' : 'aapt'), ['dump', 'badging', apk], { encoding: 'utf8', windowsHide: true });
+if (!badging.includes(`package: name='app.mosa.frame' versionCode='${artifact.versionCode}' versionName='${artifact.versionName}'`) || badging.includes('application-debuggable') || !badging.includes("sdkVersion:'27'")) throw new Error('APK incompatible ou débogable.');
+const bytes = await readFile(apk);
+if (bytes.length > 40 * 1048576) throw new Error('APK trop volumineux.');
+const sha256 = createHash('sha256').update(bytes).digest('hex');
+const filename = `mosa-frame-${artifact.versionCode}-${sha256}.apk`;
+const output = join(root, 'web/public/updates');
+await mkdir(output, { recursive: true });
+// Immutable filenames keep the previous release available during an in-flight download.
+await copyFile(apk, join(output, filename));
+await writeFile(join(output, 'frame.json'), JSON.stringify({ packageName: 'app.mosa.frame', versionCode: artifact.versionCode, versionName: artifact.versionName, minSdk: 27, bytes: bytes.length, sha256, path: `/updates/${filename}`, publishedAt: new Date().toISOString() }, null, 2) + '\n');
+console.log(`Mosa ${artifact.versionName} vérifié et prêt pour Firebase Hosting (${(bytes.length / 1048576).toFixed(1)} Mo).`);
