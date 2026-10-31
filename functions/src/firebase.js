@@ -1,0 +1,12 @@
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
+const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'demo-mosa';
+const config = process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG) : {};
+if (!getApps().length) initializeApp({ projectId, storageBucket: process.env.MOSA_STORAGE_BUCKET || config.storageBucket || `${projectId}.firebasestorage.app` });
+export const db = getFirestore();
+export const auth = getAuth();
+export const bucket = getStorage().bucket();
+export const local = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+export { projectId };

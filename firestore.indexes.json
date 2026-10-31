@@ -1,0 +1,12 @@
+{
+  "indexes": [
+    { "collectionGroup": "photos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "visibleTo", "arrayConfig": "CONTAINS" }, { "fieldPath": "deleted", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "photos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "ownerUid", "order": "ASCENDING" }, { "fieldPath": "deleted", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "photos", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "deleted", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "invitations", "fieldPath": "expiresAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "frameEnrollments", "fieldPath": "expiresAt", "ttl": true, "indexes": [] },
+    { "collectionGroup": "rateLimits", "fieldPath": "expiresAt", "ttl": true, "indexes": [] }
+  ]
+}

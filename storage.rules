@@ -1,0 +1,7 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // No public download tokens. Each download is authorized by the API.
+    match /{path=**} { allow read, write: if false; }
+  }
+}

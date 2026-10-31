@@ -1,0 +1,30 @@
+import React, { useEffect, useState } from 'react';
+import { ArrowDownToLine, Image, Trash2, EyeOff, ArrowLeft } from 'lucide-react';
+import { request } from './api';
+import { useText, Button, Empty, Modal, ErrorNotice, DateLabel } from './ui';
+export function PrivateImage({ photo, full = false, moderation = false, ...props }) {
+  const [url, setUrl] = useState(''); const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController(); let objectUrl;
+    request(`/photos/${photo.id}/image?size=${full ? 'full' : 'thumb'}${moderation ? '&moderation=1' : ''}`, { blob: true, signal: controller.signal }).then(blob => { objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); }).catch(e => { if (e.name !== 'AbortError') setFailed(true); });
+    return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [photo.id, full, moderation]);
+  return url ? <img src={url} alt={photo.caption || ''} {...props}/> : <div className="image-placeholder" role="img" aria-label={failed ? 'Photo indisponible / Unavailable photo' : 'Chargement / Loading'}><Image size={30}/></div>;
+}
+export function PhotoGrid({ photos, onOpen, moderation = false }) { const t = useText(); return <div className="photo-grid">{photos.map(photo => <button className="photo-card" key={photo.id} onClick={() => onOpen(photo)} aria-label={photo.caption || t('Ouvrir la photo', 'Open photo')}><div className="photo-image"><PrivateImage photo={photo} moderation={moderation}/></div><div className="photo-meta"><strong>{photo.caption || t('Un beau moment', 'A lovely moment')}</strong><span>{photo.ownerName} <span aria-hidden="true">·</span> {new Date(photo.createdAt).toLocaleDateString()}</span></div></button>)}</div>; }
+export function PhotoDetail({ photo, onClose, onChanged, moderation = false }) {
+  const t = useText(); const [busy, setBusy] = useState(false); const [error, setError] = useState(null);
+  async function act(remove) {
+    const question = remove ? t('Retirer définitivement cette photo de tous les foyers destinataires ?', 'Permanently remove this photo from every recipient household?') : t('Masquer cette photo dans votre album et sur votre cadre seulement ?', 'Hide this photo from your album and frame only?');
+    if (!window.confirm(question)) return;
+    setBusy(true); setError(null);
+    try { await request(`/photos/${photo.id}${remove ? '' : '/hide'}`, { method: remove ? 'DELETE' : 'POST' }); onChanged(); onClose(); } catch (e) { setError(e); } finally { setBusy(false); }
+  }
+  return <Modal title={photo.caption || t('Un beau moment', 'A lovely moment')} onClose={onClose} wide><div className="detail-photo"><PrivateImage photo={photo} full moderation={moderation}/></div><p className="muted">{photo.ownerName} · <DateLabel value={photo.createdAt}/></p><ErrorNotice error={error}/><div className="button-row">{photo.canHide && <Button icon={EyeOff} className="secondary" busy={busy} onClick={() => act(false)}>{t('Masquer chez nous', 'Hide at home')}</Button>}{photo.canDelete && <Button icon={Trash2} className="danger" busy={busy} onClick={() => act(true)}>{t('Retirer partout', 'Remove everywhere')}</Button>}</div><p className="hint">{t('Un cadre hors ligne appliquera le changement à sa prochaine connexion.', 'An offline frame will apply the change when it reconnects.')}</p></Modal>;
+}
+export default function Gallery({ onAdd, moderation = false, refreshKey = 0 }) {
+  const t = useText(); const [scope, setScope] = useState(moderation ? 'admin' : 'album'); const [photos, setPhotos] = useState([]); const [total, setTotal] = useState(0); const [nextOffset, setNextOffset] = useState(null); const [busy, setBusy] = useState(true); const [error, setError] = useState(null); const [selected, setSelected] = useState(null);
+  async function load(offset = 0) { setBusy(true); setError(null); try { const result = await request(`/photos?scope=${scope}&offset=${offset}`); setPhotos(old => offset ? [...old, ...result.photos] : result.photos); setTotal(result.total); setNextOffset(result.nextOffset); } catch (e) { setError(e); } finally { setBusy(false); } }
+  useEffect(() => { load(); }, [scope, refreshKey]);
+  return <><div className="page-heading"><div><p className="eyebrow">{moderation ? t('Administration', 'Administration') : t('À garder tout près', 'Keep them close')}</p><h1>{moderation ? t('Toutes les photos', 'All photos') : t('Notre album', 'Our album')}</h1><p>{moderation ? t('Cet espace de gestion est distinct de votre album personnel.', 'This management area is separate from your personal album.') : t('Les petits moments qui font du bien.', 'The little moments that make you smile.')}</p></div>{!moderation && <Button onClick={onAdd}>{t('Ajouter des photos', 'Add photos')}</Button>}</div>{!moderation && <div className="segmented"><button className={scope === 'album' ? 'active' : ''} onClick={() => setScope('album')}>{t('Reçues chez nous', 'Received at home')}</button><button className={scope === 'sent' ? 'active' : ''} onClick={() => setScope('sent')}>{t('Mes envois', 'My uploads')}</button></div>}<ErrorNotice error={error}/>{photos.length > 0 ? <><p className="muted gallery-count">{total} {t('souvenirs', 'memories')}</p><PhotoGrid photos={photos} onOpen={setSelected} moderation={moderation}/>{nextOffset !== null && <Button className="secondary load-more" busy={busy} onClick={() => load(nextOffset)}>{t('Voir plus de photos', 'See more photos')}</Button>}</> : !busy && !error ? <Empty title={t('Les souvenirs s’en viennent !', 'Memories are on their way!')} description={t('Les photos partagées avec vous apparaîtront ici.', 'Photos shared with you will appear here.')}>{!moderation && <Button onClick={onAdd}>{t('Envoyer un premier souvenir', 'Send a first memory')}</Button>}</Empty> : <p className="muted">{t('On rassemble les souvenirs…', 'Gathering your memories…')}</p>}{selected && <PhotoDetail photo={selected} moderation={moderation} onClose={() => setSelected(null)} onChanged={() => load()}/>}</>;
+}

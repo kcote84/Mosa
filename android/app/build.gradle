@@ -1,0 +1,28 @@
+plugins { id 'com.android.application' }
+def signingFile = new File(rootProject.projectDir.parentFile, '.local/android-signing.json')
+def signing = signingFile.exists() ? new groovy.json.JsonSlurper().parse(signingFile) : null
+android {
+    namespace 'app.mosa.frame'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'app.mosa.frame'
+        minSdk 27
+        targetSdk 28
+        versionCode 4
+        versionName '0.1.3'
+    }
+    buildFeatures { buildConfig true }
+    signingConfigs {
+        if (signing != null) {
+            mosa {
+                storeFile file(signing.storeFile)
+                storePassword signing.password
+                keyAlias 'mosa'
+                keyPassword signing.password
+            }
+        }
+    }
+    buildTypes { release { minifyEnabled false; if (signing != null) signingConfig signingConfigs.mosa } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
+dependencies { implementation 'com.google.zxing:core:3.5.3' }

@@ -1,0 +1,26 @@
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { randomBytes, createHash } from 'node:crypto';
+import { Timestamp } from 'firebase-admin/firestore';
+import { adminContext } from './admin-context.mjs';
+const local = process.argv.includes('--local');
+if (!local && !process.argv.includes('--production')) throw new Error('Choisir --local ou --production.');
+const { db } = adminContext(local);
+const idIndex = process.argv.indexOf('--id');
+const frameId = idIndex >= 0 ? process.argv[idIndex + 1] : JSON.parse(await readFile('.local/family.json', 'utf8')).initialFrame.id;
+if (!/^[a-zA-Z0-9_-]{1,128}$/.test(frameId || '')) throw new Error('Identifiant de cadre invalide.');
+let householdName;
+const token = randomBytes(32).toString('base64url'), digest = createHash('sha256').update(token).digest('hex');
+await db.runTransaction(async tx => {
+  const ref = db.collection('frames').doc(frameId); const frame = await tx.get(ref);
+  if (!frame.data()?.active) throw new Error('Cadre absent ou inactif.');
+  const home = await tx.get(db.collection('households').doc(frame.data().householdId));
+  if (!home.data()?.active) throw new Error('Foyer absent ou inactif.');
+  householdName = home.data().name;
+  tx.update(ref, { activeEnrollmentHash: digest });
+  tx.set(db.collection('frameEnrollments').doc(digest), { frameId, createdAt: Date.now(), expiresAt: Timestamp.fromMillis(Date.now() + 24 * 3600000), usedAt: null });
+});
+await mkdir('.local', { recursive: true });
+const apiBase = local ? 'http://127.0.0.1:5000' : 'https://mosa-506ef.web.app';
+await writeFile(`.local/provisioning-${frameId}-${local ? 'local' : 'production'}.json`, JSON.stringify({ apiBase, enrollmentToken: token, householdName, appUrl: 'https://mosa-506ef.web.app' }, null, 2));
+console.log('Préparation à usage unique enregistrée dans .local. Aucun identifiant affiché.');
+process.exit(0);
