@@ -41,6 +41,8 @@
 
 ## À vérifier avant les cadeaux
 
+Lots de 50 photos : compilation PWA et 8 tests unitaires réussis. Vérification en ligne avec des JPEG fictifs, sans envoi : une sélection de 52 fichiers prépare exactement 50 aperçus et désactive l'ajout. Après retrait d'un aperçu, l'ajout de deux fichiers complète le lot à 50 sans dépasser la limite. Aucun destinataire n'est coché et l'envoi reste désactivé. Les images temporaires de décodage sont libérées entre les fichiers et les aperçus se chargent à la demande. Un lot de 50 HEIC sur un iPhone physique reste à confirmer.
+
 Destinataires décochés par défaut : compilation PWA et 8 tests unitaires réussis. Vérification en ligne sans envoi de photos : zéro foyer sélectionné après chargement et à chaque nouvel envoi, « Tout le monde » sélectionne la liste autorisée, « Tout décocher » la vide, et les filtres de famille ne cochent aucun destinataire nouveau ni ne conservent de destinataires cachés. Les libellés français et anglais sont présents. Les règles serveur de séparation des familles restent inchangées.
 
 Gestion administrative des photos par cadre : 8 tests unitaires et 16 tests d'intégration réussis. Vérifiés : filtre par foyer, cadres en attente, accès admin seulement, rejet d'un cadre inconnu ou d'une photo non attribuée, retrait ciblé atomique, signal limité au foyer, maintien des images chez les autres destinataires et suppression globale. Le navigateur de test en largeur 390 px confirme le bouton d'accès, le choix du cadre, la confirmation du retrait, la disparition de la photo dans le seul foyer choisi et les libellés français/anglais. Seules des photos fictives ont été modifiées.

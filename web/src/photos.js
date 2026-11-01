@@ -5,15 +5,20 @@ export async function decodePhoto(file) {
     blob = await heicTo({ blob: file, type: 'image/jpeg', quality: 0.9 });
   }
   const url = URL.createObjectURL(blob);
+  let img, canvas;
   try {
-    const img = new Image(); img.src = url; await img.decode();
+    img = new Image(); img.src = url; await img.decode();
     if (img.naturalWidth * img.naturalHeight > 80_000_000) throw new Error('image_too_large');
     const scale = Math.min(1, 1920 / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement('canvas');
+    canvas = document.createElement('canvas');
     canvas.width = Math.round(img.naturalWidth * scale); canvas.height = Math.round(img.naturalHeight * scale);
     const ctx = canvas.getContext('2d'); ctx.fillStyle = '#FFF8EF'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     return { data: canvas.toDataURL('image/jpeg', 0.9), width: canvas.width, height: canvas.height };
-  } finally { URL.revokeObjectURL(url); }
+  } finally {
+    // Release large temporary image surfaces between files, especially for batches on iPhone.
+    if (canvas) { canvas.width = 0; canvas.height = 0; }
+    img?.removeAttribute('src'); URL.revokeObjectURL(url);
+  }
 }
 export async function renderCrop(data, { mode = 'contain', zoom = 1, x = 50, y = 50 } = {}, maxWidth = 1920) {
   if (mode === 'contain') return data;
