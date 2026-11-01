@@ -52,7 +52,7 @@ Si Internet était absent à minuit, la prochaine synchronisation réessaie, ave
 
 Toucher une photo → **Mises à jour** → **Télécharger la dernière version**. Quand elle est prête : **Installer la mise à jour**. Android doit d'abord autoriser Mosa comme source d'installation, puis confirmer la mise à jour. Le cadre n'est pas administrateur de l'appareil : aucune installation silencieuse n'est promise. L'app redémarre après remplacement et conserve ses photos et son attribution.
 
-L'administration mobile propose le téléchargement du fichier destiné aux cadres, ainsi qu'un bouton séparé pour actualiser la PWA sur le téléphone. Télécharger le fichier sur le téléphone n'ordonne pas une installation sur un cadre distant.
+L'administration mobile propose le téléchargement du fichier destiné aux cadres. Le bouton « Mettre à jour Mosa sur ce téléphone » se trouve en bas de l'accueil et est accessible à tous les membres, y compris ceux sans rôle administrateur. Télécharger le fichier du cadre sur le téléphone n'ordonne pas une installation sur un cadre distant.
 
 Avant installation, le cadre vérifie la taille, SHA-256, l'identité `app.mosa.frame`, la compatibilité Android, une version strictement supérieure et la **même signature** que celle déjà installée. Il refuse les APK débogables. Aucun jeton d'album n'est envoyé au serveur de mises à jour. Seuls les fichiers signés sont publics; ils ne contiennent pas de photos ni d'identifiants familiaux.
 

@@ -21,16 +21,6 @@ export default function FrameUpdates() {
     finally { setBusy(false); }
   }
   useEffect(() => { check(); }, []);
-  async function updatePhone() {
-    setBusy(true); setError(null);
-    try {
-      const response = await fetch('/', { cache: 'no-store' });
-      if (!response.ok) throw new Error('offline');
-      const registration = await navigator.serviceWorker?.getRegistration();
-      if (registration) await registration.update();
-      location.reload();
-    } catch { setError(new Error('update_unavailable')); setBusy(false); }
-  }
   return <section className="panel update-panel">
     <div className="section-heading"><div><h2><Monitor size={23}/> {t('Mises à jour des cadres', 'Frame updates')}</h2>
       <p>{t('Chaque cadre vérifie à minuit, à son heure locale configurée, et télécharge les nouveautés. La confirmation d’installation se fait sur le cadre.', 'Each frame checks at midnight in its configured time zone and downloads updates. Installation is confirmed on the frame.')}</p></div></div>
@@ -41,6 +31,5 @@ export default function FrameUpdates() {
       <Button className="secondary" icon={RefreshCw} busy={busy} onClick={check}>{t('Vérifier les mises à jour', 'Check for updates')}</Button>
     </div>
     <p className="hint">{t('Ce fichier sert aux cadres Android. Sur ton cell, Mosa se met à jour à la réouverture de l’app.', 'This file is for Android frames. On your phone, Mosa updates when you reopen the app.')}</p>
-    <Button className="secondary" icon={RefreshCw} busy={busy} onClick={updatePhone}>{t('Mettre à jour Mosa sur ce téléphone', 'Update Mosa on this phone')}</Button>
   </section>;
 }

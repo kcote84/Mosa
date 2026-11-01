@@ -3,6 +3,7 @@ import { X, LoaderCircle, AlertCircle } from 'lucide-react';
 export const LanguageContext = createContext('fr');
 export function useText() { const lang = useContext(LanguageContext); return (fr, en) => lang === 'en' ? en : fr; }
 const errors = {
+  phone_update_unavailable: ['La mise à jour de Mosa n’a pas abouti. Vérifie Internet, puis réessaie.', 'Mosa could not update. Check your Internet connection and try again.'],
   update_unavailable: ['La version du cadre est indisponible pour le moment. Réessaie avec une connexion Internet.', 'The frame release is currently unavailable. Please try again with an Internet connection.'],
   expired_invitation: ['Ce lien a expiré ou a déjà été utilisé. Demande un nouveau lien à Kev.', 'This link has expired or was already used. Ask Kev for a new link.'],
   invalid_invitation: ['Ce lien de connexion est invalide.', 'This sign-in link is invalid.'],

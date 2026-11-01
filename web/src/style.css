@@ -12,3 +12,4 @@
 .update-panel p { line-height: 1.55; }
 .update-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
 .update-actions .button { white-space: normal; text-align: center; }
+.phone-update { margin-top: 1rem; }
