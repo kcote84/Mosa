@@ -275,6 +275,26 @@ api.post('/frame/heartbeat', frameAuth, wrap(async (req, res) => {
 }));
 
 api.use('/admin', memberAuth, adminAuth);
+api.post('/admin/households/:householdId/photos/hide', wrap(async (req, res) => {
+  const ids = req.body.photoIds;
+  if (!Array.isArray(ids) || !ids.length || ids.length > 200 || ids.some(id => typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(id))) throw fail('choose_photos');
+  const household = await get('households', req.params.householdId);
+  if (!household) throw fail('household_not_found', 404);
+  const photoIds = [...new Set(ids)];
+  const removed = await db.runTransaction(async tx => {
+    const householdRef = db.collection('households').doc(household.id);
+    const snapshots = await tx.getAll(householdRef, ...photoIds.map(id => db.collection('photos').doc(id)));
+    if (!snapshots[0].exists) throw fail('household_not_found', 404);
+    const photos = snapshots.slice(1);
+    // Validate the whole selection before writing. A retry may include photos already removed.
+    if (photos.some(p => !p.exists || !p.data().recipientIds?.includes(household.id))) throw fail('photo_selection_changed', 409);
+    const toRemove = photos.filter(p => isRecipient(p.data(), household.id));
+    for (const photo of toRemove) tx.update(photo.ref, { hiddenFor: FieldValue.arrayUnion(household.id), visibleTo: FieldValue.arrayRemove(household.id) });
+    if (toRemove.length) albumChanged(tx, household.id);
+    return toRemove.length;
+  });
+  res.json({ ok: true, removed });
+}));
 api.post('/admin/households/:householdId/photos/:id/hide', wrap(async (req, res) => {
   const household = await get('households', req.params.householdId);
   const photo = await get('photos', req.params.id);

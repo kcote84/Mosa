@@ -23,6 +23,8 @@ const errors = {
   photo_not_found: ['Cette photo n’est plus disponible.', 'This photo is no longer available.'],
   frame_not_found: ['Ce cadre n’est plus disponible. Actualise la liste des cadres.', 'This frame is no longer available. Refresh the frame list.'],
   household_not_found: ['Ce foyer n’est plus disponible. Actualise l’administration.', 'This household is no longer available. Refresh administration.'],
+  choose_photos: ['Coche de 1 à 200 photos à retirer.', 'Select 1 to 200 photos to remove.'],
+  photo_selection_changed: ['Une photo de la sélection n’est plus disponible dans ce foyer. Annule, actualise la liste et réessaie. Aucune photo de ce lot n’a été retirée.', 'A selected photo is no longer available in this household. Cancel, refresh the list and try again. No photos in this batch were removed.'],
   cannot_disable_admin_household: ['Ton propre foyer administrateur doit rester actif.', 'Your own administrator household must stay active.'],
   cannot_disable_admin: ['Le compte administrateur doit rester actif.', 'The administrator account must remain active.'],
   not_configured: ['Mosa est en cours de préparation. Reviens bientôt !', 'Mosa is being prepared. Come back soon!']

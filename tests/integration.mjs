@@ -203,6 +203,43 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       assert.equal(manifest.status, 200); assert.ok(!manifest.data.photos.some(p => p.id === id));
       assert.equal((await call(`/frame/photos/${id}`, enrolled.data.token)).status, 404);
     });
+    await t.test('admin : retrait groupé atomique, sélection limitée et nouvelle tentative sans double signal', async () => {
+      const selectedIds = [];
+      for (let i = 0; i < 4; i++) {
+        const uploaded = await call('/photos', sender, 'POST', { image: `data:image/png;base64,${fixture.toString('base64')}`, recipientIds: i === 3 ? ['home-a3'] : ['home-a1', 'home-a3'], caption: `TEST retrait groupé ${i}` });
+        assert.equal(uploaded.status, 201); selectedIds.push(uploaded.data.id); extraPhotoIds.push(uploaded.data.id);
+      }
+      const path = '/admin/households/home-a1/photos/hide';
+      const body = { photoIds: selectedIds.slice(0, 2) };
+      assert.equal((await call(path, sender, 'POST', body)).status, 403);
+      assert.equal((await call(path, null, 'POST', body)).status, 401);
+      assert.equal((await call('/admin/households/unknown-home/photos/hide', admin, 'POST', body)).status, 404);
+      for (const photoIds of [[], 'not-an-array', ['invalid/id'], Array(201).fill(selectedIds[0])]) {
+        assert.equal((await call(path, admin, 'POST', { photoIds })).status, 400);
+      }
+      for (const invalid of ['unknown-photo', selectedIds[3]]) {
+        assert.equal((await call(path, admin, 'POST', { photoIds: [selectedIds[0], invalid] })).status, 409);
+        assert.ok((await db.collection('photos').doc(selectedIds[0]).get()).data().visibleTo.includes('home-a1'));
+      }
+      const before = (await db.collection('albumSignals').doc('home-a1').get()).data().revision;
+      const otherBefore = (await db.collection('albumSignals').doc('home-a3').get()).data().revision;
+      await signalAfter(signalA1, 'home-a1', async () => {
+        const results = await Promise.all([0, 1].map(() => call(path, admin, 'POST', { photoIds: [...body.photoIds, body.photoIds[0]], householdId: 'home-a3' })));
+        assert.ok(results.every(r => r.status === 200));
+        assert.deepEqual(results.map(r => r.data.removed).sort(), [0, 2]);
+      });
+      assert.equal((await db.collection('albumSignals').doc('home-a1').get()).data().revision, before + 1);
+      assert.equal((await db.collection('albumSignals').doc('home-a3').get()).data().revision, otherBefore);
+      const manifest = await call('/frame/manifest', frameToken);
+      for (const id of body.photoIds) {
+        const photo = (await db.collection('photos').doc(id).get()).data();
+        assert.equal(photo.deleted, false); assert.deepEqual(photo.visibleTo, ['home-a3']);
+        assert.ok(!manifest.data.photos.some(p => p.id === id));
+        assert.equal((await call(`/frame/photos/${id}`, frameToken)).status, 404);
+        assert.equal((await call(`/photos/${id}/image`, recipient)).status, 200);
+      }
+      assert.ok(manifest.data.photos.some(p => p.id === selectedIds[2]));
+    });
     await t.test('masquage local immédiatement signalé au seul foyer concerné', async () => {
       const before = (await db.collection('albumSignals').doc('home-a1').get()).data().revision;
       await signalAfter(signalA3, 'home-a3', async () => {

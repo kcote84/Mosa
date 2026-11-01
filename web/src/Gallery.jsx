@@ -11,7 +11,18 @@ export function PrivateImage({ photo, full = false, moderation = false, ...props
   }, [photo.id, full, moderation]);
   return url ? <img src={url} alt={photo.caption || ''} {...props}/> : <div className="image-placeholder" role="img" aria-label={failed ? 'Photo indisponible / Unavailable photo' : 'Chargement / Loading'}><Image size={30}/></div>;
 }
-export function PhotoGrid({ photos, onOpen, moderation = false }) { const t = useText(); return <div className="photo-grid">{photos.map(photo => <button className="photo-card" key={photo.id} onClick={() => onOpen(photo)} aria-label={photo.caption || t('Ouvrir la photo', 'Open photo')}><div className="photo-image"><PrivateImage photo={photo} moderation={moderation}/></div><div className="photo-meta"><strong>{photo.caption || t('Un beau moment', 'A lovely moment')}</strong><span>{photo.ownerName} <span aria-hidden="true">·</span> {new Date(photo.createdAt).toLocaleDateString()}</span></div></button>)}</div>; }
+export function PhotoGrid({ photos, onOpen, moderation = false, checkedIds = [], onToggle, selectionDisabled = false, selectionLimit = Infinity }) {
+  const t = useText();
+  return <div className="photo-grid">{photos.map((photo, index) => {
+    const card = <button className="photo-card" key={photo.id} disabled={selectionDisabled} onClick={() => onOpen(photo)} aria-label={photo.caption || t('Ouvrir la photo', 'Open photo')}><div className="photo-image"><PrivateImage photo={photo} moderation={moderation}/></div><div className="photo-meta"><strong>{photo.caption || t('Un beau moment', 'A lovely moment')}</strong><span>{photo.ownerName} <span aria-hidden="true">·</span> {new Date(photo.createdAt).toLocaleDateString()}</span></div></button>;
+    if (!onToggle) return card;
+    const checked = checkedIds.includes(photo.id);
+    return <div className={`selectable-photo ${checked ? 'is-checked' : ''}`} key={photo.id}>{card}
+      <label className="photo-checkbox"><input type="checkbox" checked={checked} disabled={selectionDisabled || (!checked && checkedIds.length >= selectionLimit)} onChange={() => onToggle(photo.id)}
+        aria-label={t(`Sélectionner la photo ${index + 1} : ${photo.caption || 'Un beau moment'}`, `Select photo ${index + 1}: ${photo.caption || 'A lovely moment'}`)}/></label>
+    </div>;
+  })}</div>;
+}
 export function PhotoDetail({ photo, onClose, onChanged, moderation = false }) {
   const t = useText(); const [busy, setBusy] = useState(false); const [error, setError] = useState(null);
   async function act(remove) {
