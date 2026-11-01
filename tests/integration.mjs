@@ -51,7 +51,7 @@ async function call(path, token, method = 'GET', body) {
 test('parcours réels API, invitations, confidentialité et premier démarrage différé', { timeout: 180000 }, async t => {
   const admin = await login('admin-demo'), sender = await login('a2-member'), recipient = await login('a3-member'), otherBranch = await login('b2-member');
   const fixture = await sharp({ create: { width: 2200, height: 1400, channels: 3, background: '#e66a3c' } }).png().toBuffer();
-  let photoId; const frameIds = []; const signalClients = []; let signalA1, signalA3;
+  let photoId; const extraPhotoIds = []; const frameIds = []; const signalClients = []; let signalA1, signalA3;
   try {
     await t.test('accès anonyme refusé, écriture directe Firebase refusée', async () => {
       assert.equal((await call('/photos')).status, 401);
@@ -131,6 +131,39 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       await call('/frame/heartbeat', frameToken, 'POST', { appVersionCode: 15, remoteUpdates: true, managed: true, updateRequestId: pushed.data.command.id, updateState: 'up_to_date' });
       assert.equal((await ref.get()).data().remoteUpdate.state, 'installed');
     });
+    await t.test('admin : photos par cadre et retrait ciblé sans effacer les autres foyers', async () => {
+      const uploaded = await call('/photos', sender, 'POST', { image: `data:image/png;base64,${fixture.toString('base64')}`, recipientIds: ['home-a1', 'home-a3'], caption: 'TEST retrait admin ciblé' });
+      assert.equal(uploaded.status, 201); const id = uploaded.data.id; extraPhotoIds.push(id);
+      const pending = await call('/admin/frames', admin, 'POST', { householdId: 'home-a1', label: 'TEST cadre en attente' });
+      assert.equal(pending.status, 201); frameIds.push(pending.data.id);
+      const list = frameId => call(`/photos?scope=admin&frameId=${frameId}`, admin);
+      const removePath = `/admin/frames/${frameIds[0]}/photos/${id}/hide`;
+      assert.equal((await call(`/photos?scope=admin&frameId=${frameIds[0]}`, sender)).status, 403);
+      assert.equal((await call(`/photos?scope=album&frameId=${frameIds[0]}`, sender)).status, 403);
+      assert.equal((await call(removePath, sender, 'POST')).status, 403);
+      assert.equal((await call(removePath, null, 'POST')).status, 401);
+      assert.equal((await list('unknown-frame')).status, 404);
+      assert.ok((await list(pending.data.id)).data.photos.some(p => p.id === id));
+      assert.equal((await list('frame-demo')).data.total, 0);
+      assert.equal((await call(`/admin/frames/frame-demo/photos/${id}/hide`, admin, 'POST')).status, 404);
+      const otherSignal = (await db.collection('albumSignals').doc('home-a3').get()).data().revision;
+      await signalAfter(signalA1, 'home-a1', async () => {
+        // The server derives the household from the frame, never from submitted fields.
+        assert.equal((await call(removePath, admin, 'POST', { householdId: 'home-a3' })).status, 200);
+      });
+      assert.equal((await db.collection('albumSignals').doc('home-a3').get()).data().revision, otherSignal);
+      for (const frameId of [frameIds[0], pending.data.id]) assert.ok(!(await list(frameId)).data.photos.some(p => p.id === id));
+      assert.ok((await list(frameIds[1])).data.photos.some(p => p.id === id));
+      assert.ok(!(await call('/frame/manifest', frameToken)).data.photos.some(p => p.id === id));
+      assert.equal((await call(`/frame/photos/${id}`, frameToken)).status, 404);
+      assert.equal((await call(`/photos/${id}/image`, recipient)).status, 200);
+      assert.equal((await call(removePath, admin, 'POST')).status, 404);
+      const saved = (await db.collection('photos').doc(id).get()).data();
+      assert.equal(saved.deleted, false); assert.deepEqual(saved.visibleTo, ['home-a3']);
+      assert.equal((await call(`/photos/${id}`, admin, 'DELETE')).status, 200);
+      assert.ok(!(await list(frameIds[1])).data.photos.some(p => p.id === id));
+      assert.equal((await call(`/photos/${id}/image`, recipient)).status, 404);
+    });
     await t.test('masquage local immédiatement signalé au seul foyer concerné', async () => {
       const before = (await db.collection('albumSignals').doc('home-a1').get()).data().revision;
       await signalAfter(signalA3, 'home-a3', async () => {
@@ -196,7 +229,7 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
     });
   } finally {
     for (const client of signalClients) { await terminate(client.db); await deleteApp(client.app); }
-    if (photoId) { const p = (await db.collection('photos').doc(photoId).get()).data(); if (p) { await Promise.allSettled([bucket.file(p.storagePath).delete({ ignoreNotFound: true }), bucket.file(p.thumbPath).delete({ ignoreNotFound: true })]); await db.collection('photos').doc(photoId).delete(); } }
+    for (const id of [photoId, ...extraPhotoIds].filter(Boolean)) { const p = (await db.collection('photos').doc(id).get()).data(); if (p) { await Promise.allSettled([bucket.file(p.storagePath).delete({ ignoreNotFound: true }), bucket.file(p.thumbPath).delete({ ignoreNotFound: true })]); await db.collection('photos').doc(id).delete(); } }
     for (const id of frameIds) { await db.collection('frames').doc(id).delete(); await auth.deleteUser(`frame_${id}`).catch(() => {}); }
   }
 });

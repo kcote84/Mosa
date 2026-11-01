@@ -115,6 +115,12 @@ api.get('/photos', memberAuth, wrap(async (req, res) => {
   else if (scope === 'sent') query = query.where('ownerUid', '==', req.member.id);
   else if (scope === 'album') query = query.where('visibleTo', 'array-contains', req.member.householdId);
   else throw fail('invalid_scope');
+  if (req.query.frameId !== undefined) {
+    if (scope !== 'admin' || req.member.role !== 'admin') throw fail('admin_required', 403);
+    const frame = await get('frames', req.query.frameId);
+    if (!frame?.active) throw fail('frame_not_found', 404);
+    query = query.where('visibleTo', 'array-contains', frame.householdId);
+  }
   query = query.where('deleted', '==', false);
   const total = (await query.count().get()).data().count;
   query = query.orderBy('createdAt', 'desc').orderBy(FieldPath.documentId(), 'desc');
@@ -262,6 +268,26 @@ api.post('/frame/heartbeat', frameAuth, wrap(async (req, res) => {
 }));
 
 api.use('/admin', memberAuth, adminAuth);
+api.post('/admin/frames/:frameId/photos/:id/hide', wrap(async (req, res) => {
+  const frame = await get('frames', req.params.frameId);
+  const photo = await get('photos', req.params.id);
+  if (!frame?.active) throw fail('frame_not_found', 404);
+  if (!photo) throw fail('photo_not_found', 404);
+  await db.runTransaction(async tx => {
+    const frameRef = db.collection('frames').doc(frame.id);
+    const photoRef = db.collection('photos').doc(photo.id);
+    const currentFrame = (await tx.get(frameRef)).data();
+    const currentPhoto = (await tx.get(photoRef)).data();
+    if (!currentFrame?.active) throw fail('frame_not_found', 404);
+    const householdId = currentFrame.householdId;
+    const household = await tx.get(db.collection('households').doc(householdId));
+    if (!household.exists) throw fail('household_not_found', 404);
+    if (!currentPhoto || !isRecipient(currentPhoto, householdId)) throw fail('photo_not_found', 404);
+    tx.update(photoRef, { hiddenFor: FieldValue.arrayUnion(householdId), visibleTo: FieldValue.arrayRemove(householdId) });
+    albumChanged(tx, householdId);
+  });
+  res.json({ ok: true });
+}));
 api.get('/admin/overview', wrap(async (req, res) => {
   const [households, members, frames] = await Promise.all(['households', 'members', 'frames'].map(c => db.collection(c).get()));
   res.json({ households: rows(households), members: rows(members), frames: rows(frames).map(publicFrame) });
