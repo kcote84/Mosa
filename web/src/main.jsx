@@ -13,10 +13,14 @@ import Upload from './Upload';
 import Frames from './Frames';
 import Admin from './Admin';
 import PhoneUpdate from './PhoneUpdate';
+import Welcome from './Welcome';
+import { invitationFromInput, needsIosInstallGuide } from './connection';
 import './style.css';
 
 const initialInvitation = new URLSearchParams(location.hash.slice(1)).get('invitation');
 if (initialInvitation) history.replaceState(null, '', location.pathname);
+const iphoneGuide = () => needsIosInstallGuide({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints,
+  standalone: navigator.standalone === true, displayStandalone: window.matchMedia('(display-mode: standalone)').matches });
 function App() {
   const [lang, setLang] = useState(localStorage.getItem('mosa-language') || 'fr');
   return <LanguageContext.Provider value={lang}><Mosa lang={lang} setLang={value => { localStorage.setItem('mosa-language', value); document.documentElement.lang = value; setLang(value); }}/></LanguageContext.Provider>;
@@ -24,6 +28,7 @@ function App() {
 function Mosa({ lang, setLang }) {
   const t = useText(); const [session, setSession] = useState(undefined); const [profile, setProfile] = useState(null); const [config, setConfig] = useState(null); const [error, setError] = useState(null); const [tab, setTab] = useState('home'); const [claimed, setClaimed] = useState(false); const [revision, setRevision] = useState(0); const [online, setOnline] = useState(navigator.onLine); const [installPrompt, setInstallPrompt] = useState(null);
   const [invitation, setInvitation] = useState(initialInvitation);
+  const [guideIos, setGuideIos] = useState(Boolean(initialInvitation && iphoneGuide()));
   useEffect(() => {
     let stop; initializeSession((user, cfg) => { setConfig(cfg); setSession(user); if (!user) setProfile(null); else request('/me').then(setProfile).catch(setError); }).then(s => { stop = s; }).catch(setError);
     const network = () => setOnline(navigator.onLine);
@@ -33,7 +38,7 @@ function Mosa({ lang, setLang }) {
     const appInstalled = () => { installed = true; setInstallPrompt(null); };
     const displayModeChanged = () => { if (isInApp()) appInstalled(); };
     const install = e => { e.preventDefault(); if (!installed && !isInApp()) setInstallPrompt(e); };
-    const invitationChange = () => { const token = new URLSearchParams(location.hash.slice(1)).get('invitation'); if (token) { history.replaceState(null, '', location.pathname); setInvitation(token); setClaimed(false); setError(null); } };
+    const invitationChange = () => { const token = new URLSearchParams(location.hash.slice(1)).get('invitation'); if (token) { history.replaceState(null, '', location.pathname); setInvitation(token); setGuideIos(iphoneGuide()); setClaimed(false); setError(null); } };
     window.addEventListener('online', network); window.addEventListener('offline', network); window.addEventListener('beforeinstallprompt', install);
     window.addEventListener('hashchange', invitationChange);
     window.addEventListener('appinstalled', appInstalled);
@@ -48,9 +53,16 @@ function Mosa({ lang, setLang }) {
     setInstallPrompt(null);
     try { await installPrompt.prompt(); } catch (error) { setError(error); }
   };
-  useEffect(() => { if (session !== undefined && invitation && !claimed) { setClaimed(true); setError(null); redeemInvitation(invitation).then(() => setInvitation(null)).catch(setError); } }, [session, claimed, invitation]);
+  useEffect(() => { if (session !== undefined && invitation && !claimed && !guideIos) { setClaimed(true); setError(null); redeemInvitation(invitation).then(() => setInvitation(null)).catch(e => { setInvitation(null); setError(e); }); } }, [session, claimed, invitation, guideIos]);
+  function connect(input) {
+    try { const token = invitationFromInput(input, location.origin); setProfile(null); setInvitation(token); setGuideIos(false); setClaimed(false); setError(null); }
+    catch (e) { setError(e); }
+  }
   const langButton = <div className="language-toggle" aria-label="Langue / Language"><button className={lang === 'fr' ? 'selected' : ''} onClick={() => setLang('fr')} aria-label="Français">FR</button><button className={lang === 'en' ? 'selected' : ''} onClick={() => setLang('en')} aria-label="English">EN</button></div>;
-  if (!profile) return <div className="welcome-screen"><div className="welcome-top"><span className="wordmark">Mosa<span className="brand-dot">.</span></span>{langButton}</div><div className="welcome-card"><Mascot/><h1>Mosa</h1><p className="slogan">Nos moments, chez vous.</p><p className="slogan english">Our moments, in your home.</p><div className="welcome-divider"/><ErrorNotice error={error}/>{(session === undefined || session || invitation) && !error ? <p>{t('On prépare votre album…', 'Getting your album ready…')}</p> : <><h2>{t('La famille, juste ici.', 'Family, right here.')}</h2><p>{t('Ouvre ton lien personnel pour retrouver les souvenirs de la famille. Besoin d’un nouveau lien ? Demande à Kev.', 'Open your personal link to find your family memories. Need a new link? Ask Kev.')}</p><div className="install-tip">{t('Sur iPhone : ouvre Mosa dans Safari, puis Partager → Sur l’écran d’accueil. Sur Android : menu du navigateur → Installer l’application.', 'On iPhone: open Mosa in Safari, then Share → Add to Home Screen. On Android: browser menu → Install app.')}</div></>}{session && error && <Button className="secondary" onClick={() => { logout(); setError(null); }}>{t('Se déconnecter', 'Sign out')}</Button>}</div><p className="welcome-foot"><ShieldCheck size={17}/>{t('Vos souvenirs restent entre vous.', 'Your memories stay between you.')}</p></div>;
+  if (!profile || guideIos) return <Welcome langButton={langButton} error={error} ready={session !== undefined}
+    busy={!error && !guideIos && (session === undefined || Boolean(session) || Boolean(invitation))}
+    invitation={invitation} guideIos={guideIos} onContinue={() => connect(invitation)} onConnect={connect}
+    hasSession={Boolean(session)} onLogout={() => { logout(); setError(null); }}/>;
   const navigation = [ ['home', Home, t('Accueil', 'Home')], ['upload', Plus, t('Ajouter', 'Add photos')], ['gallery', Images, t('Notre album', 'Our album')], ['frames', Monitor, t('Notre cadre', 'Our frame')] ];
   if (profile.member.role === 'admin') navigation.push(['admin', ShieldCheck, t('Administration', 'Administration')]);
   return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#" onClick={e => { e.preventDefault(); setTab('home'); }}><Mascot/><span className="wordmark">Mosa<span className="brand-dot">.</span></span></a><div className="sidebar-household"><span className="tiny-label">{t('CHEZ NOUS', 'OUR HOME')}</span><strong>{profile.household.name}</strong><span className="family-label">{profile.household.branches.length === 2 ? t('Viel & Côté réunis', 'Viel & Côté together') : profile.household.branches[0] === 'viel' ? t('Famille Viel', 'Viel family') : t('Famille Côté', 'Côté family')}</span></div><nav aria-label={t('Navigation principale', 'Main navigation')}>{navigation.map(([id, Icon, label]) => <button key={id} className={`nav-item ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}><Icon size={22}/><span>{label}</span></button>)}</nav><div className="sidebar-bottom"><p><Heart size={16}/>{t('Un petit coucou fait du bien.', 'A little hello goes a long way.')}</p><button className="text-button" onClick={logout}><LogOut size={17}/>{t('Se déconnecter', 'Sign out')}</button></div></aside><div className="main-column"><header className="topbar"><span className="mobile-wordmark wordmark">Mosa<span className="brand-dot">.</span></span><div className="topbar-greeting">{t('Bienvenue chez vous', 'Welcome home')} <span aria-hidden="true">✦</span></div><div className="topbar-right">{config?.local && <span className="test-badge">{t('Version d’essai', 'Test version')}</span>}{langButton}<div className="avatar" title={profile.member.name}>{profile.member.name.slice(0, 1)}</div></div></header>{!online && <div className="offline-banner"><WifiOff size={19}/>{t('Tu es hors ligne. Ton cadre continue avec les photos déjà reçues.', 'You are offline. Your frame keeps showing the photos it already received.')}</div>}<main className="main-content">{tab === 'home' && <HomePage profile={profile} onTab={setTab} revision={revision} installPrompt={installPrompt} onInstall={installApp}/>} {tab === 'upload' && <Upload profile={profile} onDone={() => { setRevision(v => v + 1); setTab('gallery'); }}/>} {tab === 'gallery' && <Gallery onAdd={() => setTab('upload')} refreshKey={revision}/>} {tab === 'frames' && <Frames/>} {tab === 'admin' && profile.member.role === 'admin' && <Admin/>}</main><footer className="app-footer">Mosa <span>·</span> {t('Nos moments, chez vous.', 'Our moments, in your home.')}</footer></div><nav className="mobile-nav" aria-label={t('Navigation mobile', 'Mobile navigation')}>{navigation.map(([id, Icon, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}><Icon size={22}/><span>{id === 'admin' ? 'Admin' : label}</span></button>)}</nav></div>;

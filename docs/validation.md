@@ -34,6 +34,8 @@
 
 ## À vérifier avant les cadeaux
 
+Correctif de connexion PWA iPhone : formulaire bilingue de collage du lien dans l'app installée, validation de l'origine et du jeton, guide Safari/iPad avant consommation du lien. Les 8 tests unitaires passent. Dans le navigateur relié aux émulateurs, une adresse étrangère est refusée, une invitation fictive ouvre le bon compte membre sans module admin et la session reste active après rechargement. Le formulaire français et anglais est vérifié en largeur 390 px. La confirmation finale du maintien de session sur un iPhone physique reste une vérification utilisateur.
+
 Correctif du bouton d'installation : l'offre est retirée dès son utilisation ou l'événement `appinstalled`, et ignorée lorsque Mosa est ouvert en application autonome (y compris `navigator.standalone` sur iOS). Les changements de mode d'affichage sont suivis. Aucun indicateur permanent n'est enregistré : une réinstallation reste possible si le navigateur la propose après une désinstallation. Compilation validée; confirmation sur le téléphone après fermeture et réouverture de Mosa encore nécessaire.
 
 - Installation et maintien de connexion sur un véritable iPhone/Safari et un téléphone Android. Sur iPhone, vérifier que l'ouverture du lien personnel se fait dans la même application installée; la session d'un onglet et celle de la PWA peuvent être distinctes.

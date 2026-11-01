@@ -3,6 +3,7 @@ import { X, LoaderCircle, AlertCircle } from 'lucide-react';
 export const LanguageContext = createContext('fr');
 export function useText() { const lang = useContext(LanguageContext); return (fr, en) => lang === 'en' ? en : fr; }
 const errors = {
+  paste_invitation: ['Colle le lien personnel Mosa au complet, tel que Kev te l’a envoyé.', 'Paste the complete personal Mosa link exactly as Kev sent it.'],
   choose_frames: ['Choisis au moins un cadre.', 'Choose at least one frame.'],
   update_bootstrap_required: ['Ce cadre doit recevoir une première mise à jour depuis son menu Mises à jour.', 'This frame needs its first update from its Updates menu.'],
   phone_update_unavailable: ['La mise à jour de Mosa n’a pas abouti. Vérifie Internet, puis réessaie.', 'Mosa could not update. Check your Internet connection and try again.'],
