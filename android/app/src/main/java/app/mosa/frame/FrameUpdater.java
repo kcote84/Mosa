@@ -34,7 +34,7 @@ final class FrameUpdater {
     void reconcile() {
         try {
             JSONObject release = new JSONObject(new String(FrameStore.read(metadata()), "UTF-8"));
-            if (release.optInt("versionCode") <= BuildConfig.VERSION_CODE) { apk().delete(); metadata().delete(); prefs(context).edit().remove("pendingVersion").putString("state", "up_to_date").apply(); return; }
+            if (release.optInt("versionCode") <= BuildConfig.VERSION_CODE) { apk().delete(); metadata().delete(); prefs(context).edit().remove("pendingVersion").putInt("lastInstallStatus", PackageInstaller.STATUS_SUCCESS).putString("state", "up_to_date").apply(); return; }
         } catch (Exception ignored) { }
         String state = prefs(context).getString("state", "idle");
         if (!UpdateService.running && ("checking".equals(state) || "downloading".equals(state))) state(context, "idle");
@@ -142,12 +142,21 @@ final class FrameUpdater {
         params.setAppPackageName(context.getPackageName()); params.setSize(apk().length());
         if (Build.VERSION.SDK_INT >= 31 && MosaDeviceAdmin.isOwner(context)) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
         int id = installer.createSession(params);
-        try (PackageInstaller.Session session = installer.openSession(id); InputStream in = new FileInputStream(apk()); OutputStream out = session.openWrite("base.apk", 0, apk().length())) {
-            byte[] buffer = new byte[16384]; int n; while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n); session.fsync(out); out.close();
+        boolean committed = false;
+        try (PackageInstaller.Session session = installer.openSession(id)) {
+            // Android's file-bridge stream must be closed exactly once, before commit.
+            try (InputStream in = new FileInputStream(apk()); OutputStream out = session.openWrite("base.apk", 0, apk().length())) {
+                byte[] buffer = new byte[16384]; int n; while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n); session.fsync(out);
+            }
             if (!prefs(context).edit().putInt("sessionId", id).putBoolean("automaticSession", automatic).putLong("sessionStartedAt", System.currentTimeMillis()).putString("state", "installing").commit()) throw new IOException("Cannot persist installation session");
             Intent result = new Intent(context, UpdateInstallReceiver.class).setAction("app.mosa.frame.UPDATE_RESULT");
             int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
             session.commit(PendingIntent.getBroadcast(context, id, result, flags).getIntentSender());
-        } catch (Exception e) { installer.abandonSession(id); throw e; }
+            committed = true;
+        } catch (Exception e) {
+            if (!committed) { try { installer.abandonSession(id); } catch (Exception ignored) { } throw e; }
+            // Android owns a committed session; a cleanup error cannot invalidate its result.
+            android.util.Log.w("MosaUpdates", "Installer session cleanup: " + e.getClass().getSimpleName());
+        }
     }
 }

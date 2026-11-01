@@ -15,22 +15,23 @@
 - Second redémarrage avec Wi-Fi confirmé désactivé avant ET après : photos toujours visibles; Wi-Fi réactivé après essai.
 - Gros bouton ENGLISH, passage en anglais et bouton FRANÇAIS.
 - Retour depuis les réglages Wi-Fi testé en français et en anglais; la surcouche disparaît au retour à Mosa.
-- Mises à jour : quatre tests Android couvrant minuit à Toronto, les changements d'heure, le rattrapage et les délais de reprise, les chemins de téléchargement et les limites de taille/compatibilité. Compilation signée et lint sans erreur.
-- Cadre réel : passage USB de 0.1.3 à 0.2.0 avec photos conservées; alarme enregistrée pour minuit à Toronto (04:00 UTC le 1er novembre). Téléchargement automatique de 0.2.1 confirmé à l'écran « prête », après contrôles de taille, empreinte et signature. Ce résultat ne valide pas encore la confirmation dans l'installateur Android.
-- Version finale 0.2.2 publiée, fichier public retéléchargé et empreinte comparée au manifeste; installée sur le cadre de test par USB. Permission d'installation par Mosa laissée en attente de l'autorisation du propriétaire.
-- Préparation du mode automatique 0.3.x : sept tests Android réussis (plages horaires, changement d'heure, interaction récente, exigence du mode géré, limitation des nouvelles tentatives, affichage nocturne). Version 0.3.0 installée par USB, trois photos conservées et diagnostic protégé fonctionnel. Activation du statut de gestionnaire et essai réel encore en attente de l'accord du propriétaire.
-- Version candidate 0.3.2 publiée pour l'essai de remplacement 0.3.0 → 0.3.2. Le cadre est toujours non géré; aucune installation silencieuse n'a encore été exécutée. Le téléchargement peut fonctionner avant cette activation, mais son installation automatique reste impossible tant que le statut Android n'est pas accordé.
+- Mises à jour : sept tests Android réussis couvrant minuit à Toronto, les changements d'heure, le rattrapage, les chemins et limites de téléchargement, la fenêtre d'installation, les interactions récentes, l'exigence du mode géré, la limitation des tentatives et le mode nuit. Compilation signée 0.3.4 et lint sans erreur.
+- Autorisation explicite de Keven le 31 octobre : activer le mode géré sur son cadre et sur les prochains cadres familiaux. Activation Android réussie sans réinitialisation. Retrait via `RELEASE_MANAGEMENT`, conservation des trois photos et réactivation vérifiés sur le Moonka de test.
+- Deux remplacements sans clic sur le cadre réel : 0.3.0 → 0.3.2, puis 0.3.3 → 0.3.4 après correction d'une double fermeture du flux de l'installateur. Le dernier remplacement signale `lastInstallStatus: 0`, `state: up_to_date`, `managed: true`, version 0.3.4 et trois photos. Android confirme que l'installateur est Mosa lui-même; aucun `adb install` n'est intervenu dans ces deux transitions. La version intermédiaire 0.3.3 a été installée par USB pour tester son installateur corrigé.
+- Relance autonome et reprise de synchronisation confirmées par le diagnostic local et le serveur après remplacement. Les accès et le cache sont conservés.
+- Essai vidéo en mode nuit : un ancien écran Frameo réapparaissait brièvement lors du premier remplacement. Frameo a été désactivé sans effacement, puis l'essai final ne montre que du noir sur les neuf images encodées (`YMAX = 16`, noir vidéo). La préparation des futurs cadres désactive aussi cet ancien lanceur s'il est présent. Preuves locales : `qa/auto-final.mp4` et `qa/automatic-updates-complete.png`.
+- Les réglages de nuit temporaires de l'essai ont été restaurés à 23 h–5 h. Photos de nouveau affichées. Alarme exacte du prochain contrôle enregistrée pour le 1er novembre à 04:00 UTC, soit minuit à Toronto. Le test immédiat a utilisé la commande USB protégée; le déclenchement à l'heure réelle reste à observer durant une nuit d'utilisation.
 
 ## À vérifier avant les cadeaux
 
 Correctif du bouton d'installation : l'offre est retirée dès son utilisation ou l'événement `appinstalled`, et ignorée lorsque Mosa est ouvert en application autonome (y compris `navigator.standalone` sur iOS). Les changements de mode d'affichage sont suivis. Aucun indicateur permanent n'est enregistré : une réinstallation reste possible si le navigateur la propose après une désinstallation. Compilation validée; confirmation sur le téléphone après fermeture et réouverture de Mosa encore nécessaire.
 
 - Installation et maintien de connexion sur un véritable iPhone/Safari et un téléphone Android. Sur iPhone, vérifier que l'ouverture du lien personnel se fait dans la même application installée; la session d'un onglet et celle de la PWA peuvent être distinctes.
-- Installation d'une version téléchargée avec confirmation Android, annulation puis nouvelle tentative; autorisation de source Mosa à terminer sur le cadre. Le contrôle distant de l'écran n'a pas été disponible pour cette partie de l'essai.
+- Si un cadre doit rester non géré : vérifier séparément le parcours de confirmation Android, l'annulation et la nouvelle tentative. Ce parcours n'est pas utilisé sur les cadres familiaux préparés en mode automatique.
 - Photos HEIC réelles, orientation, recadrage et rendu de portraits sur l'écran physique. Le convertisseur HEIC n'est chargé qu'au besoin et produit un fichier compilé assez volumineux.
 - Nuit réelle 23 h–5 h et réveil tactile; luminosité confortable dans une chambre sombre.
 - Plusieurs jours d'utilisation, coupure d'alimentation physique et récupération après une panne réseau prolongée.
-- Chaque nouveau cadre : identité du foyer, retour Wi-Fi, démarrage, mémoire disponible, qualité d'image et dix photos personnelles approuvées.
+- Chaque nouveau cadre : identité du foyer, mode géré autorisé, essai d'installation sans clic, retour Wi-Fi, démarrage, mémoire disponible, qualité d'image et dix photos personnelles approuvées.
 - Observer la première facture; décider de la sauvegarde indépendante des albums et vérifier les alertes de budget souhaitées.
 
 Les captures de contrôle et images de démonstration sont locales dans `qa/`, exclues de Git. Aucun portrait personnel n'a été importé pour ces essais.

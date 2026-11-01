@@ -1,6 +1,6 @@
 # Préparer un cadre Mosa
 
-Modèle testé : Moonka ZN-DP1002, Android 8.1/API 27, écran 1 280 × 800. Aucun root ni remplacement du micrologiciel. L'application Frameo reste installée.
+Modèle testé : Moonka ZN-DP1002, Android 8.1/API 27, écran 1 280 × 800. Aucun root ni remplacement du micrologiciel. L'application Frameo reste installée, mais désactivée pour éviter son apparition durant les mises à jour de Mosa.
 
 ## Compiler
 
@@ -22,10 +22,10 @@ Sauvegarder **ensemble** `.local/mosa-release.jks` et `.local/android-signing.js
 3. Installer la version signée, autoriser le bouton de retour Wi-Fi (permission d'affichage au-dessus des applications approuvée par le propriétaire), attribuer Mosa comme écran d'accueil, puis déposer la préparation.
 
 ```powershell
-.\scripts\install-frame.ps1 -Serial NUMERO_DU_CADRE -Adb CHEMIN_VERS_ADB -Provisioning CHEMIN_VERS_PREPARATION -EnableWifiReturnButton
+.\scripts\install-frame.ps1 -Serial NUMERO_DU_CADRE -Adb CHEMIN_VERS_ADB -Provisioning CHEMIN_VERS_PREPARATION -EnableWifiReturnButton -EnableAutomaticUpdates
 ```
 
-Le script exige un appareil précis. Il ne réinitialise pas le cadre et n'efface pas Frameo. Si Fully Kiosk était utilisé, le désactiver sur ce cadre pour éviter deux applications qui démarrent ensemble :
+Le script exige un appareil précis. Il ne réinitialise pas le cadre et n'efface pas Frameo. Avec `-EnableAutomaticUpdates`, il désactive Frameo et Fully Kiosk s'ils sont présents, après avoir défini Mosa comme accueil. Leurs données restent intactes et ces applications peuvent être réactivées. Sans ce commutateur, désactiver l'ancien lanceur manuellement si nécessaire :
 
 ```powershell
 adb -s NUMERO_DU_CADRE shell pm disable-user --user 0 de.ozerov.fully
@@ -42,15 +42,17 @@ L'application consomme puis supprime le fichier de préparation. Son accès dura
 - Sur les réglages Wi-Fi : bouton bleu « Revenir aux photos » ou « Back to photos », y compris lorsque le clavier est ouvert.
 - Mode nuit : 23 h à 5 h dans `America/Toronto`; le cadre tient compte du changement d'heure. Toucher l'écran le réveille momentanément.
 - Le QR ouvre la PWA. Le lien personnel d'invitation reste nécessaire pour connecter chaque personne; le QR public n'accorde pas accès à l'album.
-- Le bouton « Mises à jour » fonctionne. Si souhaité, autoriser une fois Mosa à installer ses mises à jour dans les réglages Android; chaque installation demande encore une confirmation.
+- Le bouton « Mises à jour » fonctionne et le diagnostic confirme `managed: true`. Tester une mise à jour signée sans clic, avec conservation des photos et relance automatique. Sur un cadre non géré seulement, chaque installation demande une confirmation Android.
 
 ### Préparer les installations sans clic
+
+**Choix autorisé par Keven le 31 octobre 2026 :** activer le mode géré pour le cadre Kev et Vicky et pour tous les autres cadres familiaux à leur préparation. Cette autorisation est déjà donnée; inclure `-EnableAutomaticUpdates` à chaque installation. Vérifier la compatibilité et l'identité du cadre à chaque fois, sans effacement ni contournement d'un refus Android.
 
 Android 8.1 permet l'installation silencieuse à l'application désignée comme **gestionnaire de l'appareil** (`Device Owner`). Ce statut Android est distinct du rôle administrateur de l'album Mosa. Il donne des droits étendus et durables sur le cadre; son activation exige l'accord du propriétaire. Mosa n'utilise pas de politique d'effacement, de verrouillage, de collecte de comptes ou de contrôle du réseau. Son installateur accepte exclusivement son propre paquet signé, plus récent.
 
 Avant l'activation, vérifier qu'il n'y a aucun autre gestionnaire, aucun compte Android et aucun utilisateur secondaire. Si Android refuse, arrêter et examiner la cause; ne pas réinitialiser l'appareil ni modifier les indicateurs système pour contourner le refus.
 
-Une fois l'accord obtenu, installer une version 0.3.0 ou plus récente et exécuter :
+Avec l'accord déjà enregistré ci-dessus, installer la dernière version signée (au minimum 0.3.4, qui corrige la fermeture de la session d'installation), puis exécuter si nécessaire :
 
 ```powershell
 adb -s NUMERO_DU_CADRE shell dpm set-device-owner app.mosa.frame/.MosaDeviceAdmin
@@ -71,7 +73,7 @@ Cette commande retire le statut de gestionnaire sans appeler d'effacement. Véri
 
 À partir de 0.2.0, chaque cadre recherche et télécharge les nouvelles versions à **00:00 dans le fuseau du cadre** (initialement `America/Toronto`). Une alarme Android est recalculée après redémarrage, remplacement de l'application ou changement d'heure. Les journées de 23/25 heures restent correctes. Sur un Android récent qui refuse les alarmes exactes, l'heure peut être décalée par le système; le modèle testé utilise Android 8.1.
 
-Si Internet était absent à minuit, la prochaine synchronisation réessaie, avec au moins quinze minutes entre les échecs. Un nouveau jour permet une tentative à minuit même si la précédente était à 23:59. L'app vérifie aussi au démarrage si la recherche du jour a été manquée. La vérification ne réveille pas l'écran; le téléchargement ne lance jamais l'installateur pendant la nuit.
+Si Internet était absent à minuit, la prochaine synchronisation réessaie, avec au moins quinze minutes entre les échecs. Un nouveau jour permet une tentative à minuit même si la précédente était à 23:59. L'app vérifie aussi au démarrage si la recherche du jour a été manquée. La vérification conserve le mode nuit; aucune interface de confirmation d'installation n'est ouverte automatiquement.
 
 Sur les cadres gérés avec Mosa 0.3.0+, l'installation se lance automatiquement **entre 00:00 et 05:00**, après vérification du fichier. Elle attend au moins cinq minutes après la dernière interaction tactile. Une installation échouée n'est retentée automatiquement qu'une autre nuit pour la même version. Un système qui réclamerait quand même une confirmation ne provoque aucun écran nocturne : la session est abandonnée et la version attend. La fenêtre d'installation reste 00:00–05:00 même si l'horaire d'affichage de nuit a été personnalisé.
 
@@ -112,6 +114,6 @@ Conserver le Wi-Fi de la maison d'installation uniquement pour les essais; ne pa
 
 ## Retour à l'état précédent
 
-Réactiver Fully Kiosk si nécessaire : `adb -s NUMERO_DU_CADRE shell pm enable de.ozerov.fully`, puis ouvrir l'application voulue ou la choisir comme application d'accueil. Frameo n'est pas supprimé. Pour couper l'accès Mosa d'un cadre perdu, utiliser Révoquer dans l'administration : le serveur refuse immédiatement ses demandes; les photos locales sont effacées lors du prochain contact réussi avec le serveur.
+Réactiver Frameo si nécessaire : `adb -s NUMERO_DU_CADRE shell pm enable --user 0 net.frameo.frame`. Pour Fully Kiosk : `adb -s NUMERO_DU_CADRE shell pm enable --user 0 de.ozerov.fully`. Puis ouvrir l'application voulue ou la choisir comme application d'accueil. Frameo n'est pas supprimé. Pour couper l'accès Mosa d'un cadre perdu, utiliser Révoquer dans l'administration : le serveur refuse immédiatement ses demandes; les photos locales sont effacées lors du prochain contact réussi avec le serveur.
 
 Un cadre hors ligne ne peut pas recevoir un ordre de suppression immédiatement. Une révocation ne récupère pas les copies déjà enregistrées ailleurs par une personne autorisée.

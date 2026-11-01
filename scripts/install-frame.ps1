@@ -24,9 +24,12 @@ if ($EnableAutomaticUpdates) {
     # Opt-in device management. Android refuses incompatible/existing owners; never reset to force it.
     $policy = (& $adbPath -s $Serial shell dumpsys device_policy) -join "`n"
     if ($LASTEXITCODE -ne 0) { throw 'Impossible de vérifier le gestionnaire du cadre.' }
-    if ($policy -notmatch 'Device Owner:[\s\S]*?app\.mosa\.frame/\.MosaDeviceAdmin') {
+    $mosaOwnerPattern = 'Device Owner:\s*admin=ComponentInfo\{app\.mosa\.frame/(?:app\.mosa\.frame)?\.MosaDeviceAdmin\}'
+    if ($policy -notmatch $mosaOwnerPattern) {
         Invoke-MosaAdb -AdbArguments @('shell', 'dpm', 'set-device-owner', 'app.mosa.frame/.MosaDeviceAdmin')
     }
+    $policy = (& $adbPath -s $Serial shell dumpsys device_policy) -join "`n"
+    if ($LASTEXITCODE -ne 0 -or $policy -notmatch $mosaOwnerPattern) { throw 'Le mode automatique ne peut pas être confirmé sur ce cadre.' }
 }
 if ($EnableWifiReturnButton) {
     # This switch records the installer's explicit choice to grant the approved overlay permission.
@@ -36,6 +39,16 @@ Invoke-MosaAdb -AdbArguments @('shell', 'am', 'force-stop', 'app.mosa.frame')
 Invoke-MosaAdb -AdbArguments @('shell', 'mkdir', '-p', '/sdcard/Android/data/app.mosa.frame/files')
 Invoke-MosaAdb -AdbArguments @('push', $provisionPath, '/sdcard/Android/data/app.mosa.frame/files/provisioning.json')
 Invoke-MosaAdb -AdbArguments @('shell', 'cmd', 'package', 'set-home-activity', 'app.mosa.frame/.MainActivity')
+if ($EnableAutomaticUpdates) {
+    # Keep previous launchers from appearing while Android replaces Mosa. Data is retained.
+    $installed = @(& $adbPath -s $Serial shell pm list packages)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect installed frame applications.' }
+    foreach ($previousLauncher in @('net.frameo.frame', 'de.ozerov.fully')) {
+        if ($installed -contains "package:$previousLauncher") {
+            Invoke-MosaAdb -AdbArguments @('shell', 'pm', 'disable-user', '--user', '0', $previousLauncher)
+        }
+    }
+}
 Invoke-MosaAdb -AdbArguments @('shell', 'am', 'start', '-n', 'app.mosa.frame/.MainActivity')
 Write-Output 'Mosa installé. Vérifier le foyer, les photos et le retour Wi-Fi sur ce cadre.'
 if (-not $EnableWifiReturnButton) { Write-Warning 'Le bouton de retour Wi-Fi doit être autorisé avant de remettre le cadre.' }
