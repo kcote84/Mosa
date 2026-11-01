@@ -291,6 +291,31 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       assert.equal((await call(`/frame/photos/${photoId}`, frameToken)).status, 404);
       assert.equal((await call(`/photos/${photoId}/image`, sender)).status, 404);
     });
+    await t.test('trois familles : permissions des foyers mixtes et confidentialité sans accès indirect', async () => {
+      const third = await login('c1-member'), thirdSecond = await login('c1-second');
+      const mixed = await login('b2-member'), mixedSecond = await login('b2-second');
+      const hubMember = await login('hub-member'), coteOnly = await login('b1-member');
+      const destinations = async token => (await call('/households', token)).data.map(h => h.id).sort();
+      for (const token of [third, thirdSecond]) assert.deepEqual(await destinations(token), ['home-b2', 'home-c1', 'home-hub']);
+      for (const token of [mixed, mixedSecond]) assert.deepEqual(await destinations(token), ['home-b1', 'home-b2', 'home-b3', 'home-c1', 'home-hub']);
+      assert.deepEqual(await destinations(coteOnly), ['home-b1', 'home-b2', 'home-b3', 'home-hub']);
+      assert.deepEqual(await destinations(sender), ['home-a1', 'home-a2', 'home-a3', 'home-hub']);
+      for (const token of [admin, hubMember]) assert.equal((await destinations(token)).length, 8);
+      const image = `data:image/png;base64,${fixture.toString('base64')}`;
+      for (const recipientIds of [['home-a1'], ['home-b1']]) assert.equal((await call('/photos', third, 'POST', { image, recipientIds })).status, 403);
+      assert.equal((await call('/photos', coteOnly, 'POST', { image, recipientIds: ['home-c1'] })).status, 403);
+      for (const token of [third, mixed, mixedSecond, hubMember]) assert.equal((await call('/admin/overview', token)).status, 403);
+      const uploaded = await call('/photos', third, 'POST', { image, recipientIds: ['home-c1', 'home-b2'], caption: 'TEST troisième famille' });
+      assert.equal(uploaded.status, 201); extraPhotoIds.push(uploaded.data.id);
+      for (const token of [thirdSecond, mixed, mixedSecond]) assert.equal((await call(`/photos/${uploaded.data.id}/image`, token)).status, 200);
+      for (const token of [sender, coteOnly, hubMember]) {
+        assert.ok(!(await call('/photos', token)).data.photos.some(p => p.id === uploaded.data.id));
+        assert.equal((await call(`/photos/${uploaded.data.id}/image`, token)).status, 404);
+      }
+      const changed = await call('/admin/households/home-c1', admin, 'PATCH', { branches: ['castonguay'] });
+      assert.equal(changed.status, 200); assert.deepEqual(changed.data.branches, ['castonguay']);
+      assert.equal((await call('/admin/households/home-c1', third, 'PATCH', { branches: ['viel'] })).status, 403);
+    });
     await t.test('désactivation du cadre et du foyer coupe aussi le signal', async () => {
       const ref = db.collection('frames').doc(frameIds[0]);
       await ref.update({ active: false });

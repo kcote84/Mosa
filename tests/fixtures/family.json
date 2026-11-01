@@ -2,12 +2,13 @@
   "adminId": "admin-demo",
   "initialFrame": { "id": "frame-demo", "householdId": "home-hub" },
   "households": [
-    ["home-hub", "Foyer central", ["viel", "cote"], [["admin-demo", "Admin démo", "admin"], ["hub-member", "Membre démo"]]],
+    ["home-hub", "Foyer central", ["viel", "cote", "castonguay"], [["admin-demo", "Admin démo", "admin"], ["hub-member", "Membre démo"]]],
     ["home-a1", "Foyer A1", ["viel"], [["a1-member", "Membre A1"], ["a1-second", "Membre A1 bis"]]],
     ["home-a2", "Foyer A2", ["viel"], [["a2-member", "Membre A2"]]],
     ["home-a3", "Foyer A3", ["viel"], [["a3-member", "Membre A3"]]],
     ["home-b1", "Foyer B1", ["cote"], [["b1-member", "Membre B1"]]],
-    ["home-b2", "Foyer B2", ["cote"], [["b2-member", "Membre B2"]]],
-    ["home-b3", "Foyer B3", ["cote"], [["b3-member", "Membre B3"]]]
+    ["home-b2", "Foyer B2", ["cote", "castonguay"], [["b2-member", "Membre B2"], ["b2-second", "Membre B2 bis"]]],
+    ["home-b3", "Foyer B3", ["cote"], [["b3-member", "Membre B3"]]],
+    ["home-c1", "Foyer C1", ["castonguay"], [["c1-member", "Membre C1"], ["c1-second", "Membre C1 bis"]]]
   ]
 }

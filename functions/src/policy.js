@@ -1,4 +1,5 @@
-export const BRANCHES = ['viel', 'cote'];
+import { BRANCHES } from './families.js';
+export { BRANCHES } from './families.js';
 export const DEFAULT_SETTINGS = { locale: 'fr', intervalSeconds: 60, fit: 'contain', nightEnabled: true, nightStart: '23:00', nightEnd: '05:00', timeZone: 'America/Toronto' };
 export function intersects(a = [], b = []) { return a.some(value => b.includes(value)); }
 export function canSendTo(senderHousehold, recipientHousehold) {
