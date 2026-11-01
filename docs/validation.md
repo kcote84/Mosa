@@ -41,6 +41,8 @@
 
 ## À vérifier avant les cadeaux
 
+Destinataires décochés par défaut : compilation PWA et 8 tests unitaires réussis. Vérification en ligne sans envoi de photos : zéro foyer sélectionné après chargement et à chaque nouvel envoi, « Tout le monde » sélectionne la liste autorisée, « Tout décocher » la vide, et les filtres de famille ne cochent aucun destinataire nouveau ni ne conservent de destinataires cachés. Les libellés français et anglais sont présents. Les règles serveur de séparation des familles restent inchangées.
+
 Gestion administrative des photos par cadre : 8 tests unitaires et 16 tests d'intégration réussis. Vérifiés : filtre par foyer, cadres en attente, accès admin seulement, rejet d'un cadre inconnu ou d'une photo non attribuée, retrait ciblé atomique, signal limité au foyer, maintien des images chez les autres destinataires et suppression globale. Le navigateur de test en largeur 390 px confirme le bouton d'accès, le choix du cadre, la confirmation du retrait, la disparition de la photo dans le seul foyer choisi et les libellés français/anglais. Seules des photos fictives ont été modifiées.
 
 Invitations iPhone et cache : 8 tests unitaires et 15 tests d'intégration réussis. Les nouveaux liens `/connexion/` et les anciens liens racine sont acceptés; les invitations utilisées, remplacées et réellement expirées sont distinguées par l'API. Les sessions déjà ouvertes ne sont pas révoquées. Le parcours d'installation sur un iPhone physique doit être revérifié avec un nouveau membre; la récupération par collage dans l'app a été confirmée par l'utilisateur.

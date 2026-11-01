@@ -8,7 +8,7 @@ Application : https://mosa-506ef.web.app — l'accès à un album exige un lien 
 
 ## Fonctionnement
 
-- Deux branches familiales séparées, avec un foyer pouvant appartenir aux deux. Les destinataires autorisés sont cochés par défaut et peuvent être retirés individuellement.
+- Deux branches familiales séparées, avec un foyer pouvant appartenir aux deux. Aucun destinataire n'est coché par défaut. Le bouton « Tout le monde » sélectionne les foyers autorisés, avec possibilité de décocher individuellement ou de tout décocher.
 - Un compte par personne, un album par foyer. Un foyer exclu ne reçoit pas la photo sur son cadre ni dans son album mobile. L'auteur conserve accès à ses propres envois; l'administrateur dispose d'un espace distinct de modération.
 - Invitations personnelles à usage unique (48 h), sans mot de passe. Révocation des sessions et anciens liens depuis l'administration.
 - Images optimisées en JPEG (maximum 1 920 px), miniatures de 480 px, métadonnées EXIF/GPS supprimées; les originaux ne sont pas conservés.
