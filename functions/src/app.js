@@ -115,6 +115,13 @@ api.get('/photos', memberAuth, wrap(async (req, res) => {
   else if (scope === 'sent') query = query.where('ownerUid', '==', req.member.id);
   else if (scope === 'album') query = query.where('visibleTo', 'array-contains', req.member.householdId);
   else throw fail('invalid_scope');
+  if (req.query.householdId !== undefined) {
+    if (scope !== 'admin' || req.member.role !== 'admin') throw fail('admin_required', 403);
+    if (req.query.frameId !== undefined) throw fail('invalid_photo_filter');
+    const household = await get('households', req.query.householdId);
+    if (!household) throw fail('household_not_found', 404);
+    query = query.where('visibleTo', 'array-contains', household.id);
+  }
   if (req.query.frameId !== undefined) {
     if (scope !== 'admin' || req.member.role !== 'admin') throw fail('admin_required', 403);
     const frame = await get('frames', req.query.frameId);
@@ -268,6 +275,23 @@ api.post('/frame/heartbeat', frameAuth, wrap(async (req, res) => {
 }));
 
 api.use('/admin', memberAuth, adminAuth);
+api.post('/admin/households/:householdId/photos/:id/hide', wrap(async (req, res) => {
+  const household = await get('households', req.params.householdId);
+  const photo = await get('photos', req.params.id);
+  if (!household) throw fail('household_not_found', 404);
+  if (!photo) throw fail('photo_not_found', 404);
+  await db.runTransaction(async tx => {
+    const householdRef = db.collection('households').doc(household.id);
+    const photoRef = db.collection('photos').doc(photo.id);
+    const currentHousehold = await tx.get(householdRef);
+    const currentPhoto = (await tx.get(photoRef)).data();
+    if (!currentHousehold.exists) throw fail('household_not_found', 404);
+    if (!currentPhoto || !isRecipient(currentPhoto, household.id)) throw fail('photo_not_found', 404);
+    tx.update(photoRef, { hiddenFor: FieldValue.arrayUnion(household.id), visibleTo: FieldValue.arrayRemove(household.id) });
+    albumChanged(tx, household.id);
+  });
+  res.json({ ok: true });
+}));
 api.post('/admin/frames/:frameId/photos/:id/hide', wrap(async (req, res) => {
   const frame = await get('frames', req.params.frameId);
   const photo = await get('photos', req.params.id);

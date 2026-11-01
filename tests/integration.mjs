@@ -164,6 +164,45 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       assert.ok(!(await list(frameIds[1])).data.photos.some(p => p.id === id));
       assert.equal((await call(`/photos/${id}/image`, recipient)).status, 404);
     });
+    await t.test('admin : retrait avant association du cadre, futur téléchargement exclu et autres foyers préservés', async () => {
+      assert.equal((await db.collection('frames').where('householdId', '==', 'home-a2').get()).empty, true);
+      const uploaded = await call('/photos', sender, 'POST', { image: `data:image/png;base64,${fixture.toString('base64')}`, recipientIds: ['home-a2', 'home-a3'], caption: 'TEST retrait avant association' });
+      assert.equal(uploaded.status, 201); const id = uploaded.data.id; extraPhotoIds.push(id);
+      const listPath = '/photos?scope=admin&householdId=home-a2';
+      const removePath = `/admin/households/home-a2/photos/${id}/hide`;
+      assert.ok((await call(listPath, admin)).data.photos.some(p => p.id === id));
+      assert.equal((await call(listPath, sender)).status, 403);
+      assert.equal((await call('/photos?scope=album&householdId=home-a3', sender)).status, 403);
+      assert.equal((await call(listPath)).status, 401);
+      assert.equal((await call('/photos?scope=admin&householdId=unknown-home', admin)).status, 404);
+      assert.equal((await call(`${listPath}&frameId=${frameIds[0]}`, admin)).status, 400);
+      assert.equal((await call(removePath, sender, 'POST')).status, 403);
+      assert.equal((await call(removePath, null, 'POST')).status, 401);
+      assert.equal((await call(`/admin/households/unknown-home/photos/${id}/hide`, admin, 'POST')).status, 404);
+      assert.equal((await call(`/admin/households/home-b2/photos/${id}/hide`, admin, 'POST')).status, 404);
+      const targetRevision = (await db.collection('albumSignals').doc('home-a2').get()).data().revision;
+      const otherRevision = (await db.collection('albumSignals').doc('home-a3').get()).data().revision;
+      // Extra request fields cannot redirect the removal to a different household.
+      assert.equal((await call(removePath, admin, 'POST', { householdId: 'home-a3' })).status, 200);
+      assert.ok(!(await call(listPath, admin)).data.photos.some(p => p.id === id));
+      assert.ok(!(await call('/photos', sender)).data.photos.some(p => p.id === id));
+      assert.ok((await call('/photos', recipient)).data.photos.some(p => p.id === id));
+      assert.equal((await call(`/photos/${id}/image`, recipient)).status, 200);
+      const saved = (await db.collection('photos').doc(id).get()).data();
+      assert.equal(saved.deleted, false); assert.deepEqual(saved.visibleTo, ['home-a3']);
+      assert.equal((await db.collection('albumSignals').doc('home-a2').get()).data().revision, targetRevision + 1);
+      assert.equal((await db.collection('albumSignals').doc('home-a3').get()).data().revision, otherRevision);
+      assert.equal((await call(removePath, admin, 'POST')).status, 404);
+      const created = await call('/admin/frames', admin, 'POST', { householdId: 'home-a2', label: 'TEST cadre créé après retrait' });
+      assert.equal(created.status, 201); frameIds.push(created.data.id);
+      const enrollment = await call(`/admin/frames/${created.data.id}/enrollment`, admin, 'POST');
+      assert.equal(enrollment.status, 200);
+      const enrolled = await call('/frame/enroll', null, 'POST', { token: enrollment.data.token });
+      assert.equal(enrolled.status, 200);
+      const manifest = await call('/frame/manifest', enrolled.data.token);
+      assert.equal(manifest.status, 200); assert.ok(!manifest.data.photos.some(p => p.id === id));
+      assert.equal((await call(`/frame/photos/${id}`, enrolled.data.token)).status, 404);
+    });
     await t.test('masquage local immédiatement signalé au seul foyer concerné', async () => {
       const before = (await db.collection('albumSignals').doc('home-a1').get()).data().revision;
       await signalAfter(signalA3, 'home-a3', async () => {

@@ -22,6 +22,7 @@ const errors = {
   too_many_attempts: ['Un petit moment ! Réessaie dans quelques minutes.', 'One moment! Please try again in a few minutes.'],
   photo_not_found: ['Cette photo n’est plus disponible.', 'This photo is no longer available.'],
   frame_not_found: ['Ce cadre n’est plus disponible. Actualise la liste des cadres.', 'This frame is no longer available. Refresh the frame list.'],
+  household_not_found: ['Ce foyer n’est plus disponible. Actualise l’administration.', 'This household is no longer available. Refresh administration.'],
   cannot_disable_admin_household: ['Ton propre foyer administrateur doit rester actif.', 'Your own administrator household must stay active.'],
   cannot_disable_admin: ['Le compte administrateur doit rester actif.', 'The administrator account must remain active.'],
   not_configured: ['Mosa est en cours de préparation. Reviens bientôt !', 'Mosa is being prepared. Come back soon!']
