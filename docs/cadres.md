@@ -44,6 +44,7 @@ L'application consomme puis supprime le fichier de préparation. Son accès dura
 - Mode nuit : 23 h à 5 h dans `America/Toronto`; le cadre tient compte du changement d'heure. Toucher l'écran le réveille momentanément.
 - Le QR ouvre la PWA. Le lien personnel d'invitation reste nécessaire pour connecter chaque personne; le QR public n'accorde pas accès à l'album.
 - Le bouton « Mises à jour » fonctionne et le diagnostic confirme `managed: true`. Tester une mise à jour signée sans clic, avec conservation des photos et relance automatique. Sur un cadre non géré seulement, chaque installation demande une confirmation Android.
+- Depuis 0.4.4, les six boutons du menu photo occupent une seule rangée, avec des zones tactiles de 54 dp et le choix de langue bleu à droite. L'écran d'accueil sans photos regroupe aussi ses actions sur une rangée. Vérifier la lisibilité en français et en anglais.
 
 ### Préparer les installations sans clic
 

@@ -94,6 +94,17 @@ public class MainActivity extends Activity {
         b.setTextColor(Color.WHITE); b.setTextSize(18); b.setTypeface(Typeface.DEFAULT_BOLD); b.setMinWidth(dp(155));
         b.setContentDescription(t("Switch to English", "Passer en français")); return b;
     }
+    private LinearLayout buttonRow(Button... buttons) {
+        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER);
+        for (Button b : buttons) {
+            b.setMinWidth(0); b.setMinimumWidth(0); b.setPadding(dp(10), 0, dp(10), 0); b.setSingleLine(true);
+            int textSize = Math.round(b.getTextSize() / getResources().getDisplayMetrics().scaledDensity);
+            b.setAutoSizeTextTypeUniformWithConfiguration(14, Math.max(14, textSize), 1, android.util.TypedValue.COMPLEX_UNIT_SP);
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(54), 1f); p.setMargins(dp(4), 0, dp(4), 0);
+            row.addView(b, p);
+        }
+        return row;
+    }
     private String householdName() {
         if (manifest != null && !manifest.optString("householdName").isEmpty()) return manifest.optString("householdName");
         try { JSONObject credentials = store.credentials(); if (credentials != null) return credentials.optString("householdName", "Mosa"); } catch (Exception ignored) { }
@@ -114,12 +125,12 @@ public class MainActivity extends Activity {
         if (!startup) {
             TextView home = label(householdName(), 20, GREEN, true); LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, -2); hp.topMargin = dp(20); welcome.addView(home, hp);
             TextView message = label(statusMessage(), 17, MUTED, false); LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(-1, -2); mp.topMargin = dp(8); welcome.addView(message, mp);
-            LinearLayout buttons = new LinearLayout(this); buttons.setGravity(Gravity.CENTER); LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, -2); bp.topMargin = dp(20);
-            buttons.addView(button(t("Connecter le Wi-Fi", "Connect Wi-Fi"), this::openWifi));
-            buttons.addView(button(t("L’app sur mon téléphone", "App on my phone"), this::showQr));
-            buttons.addView(languageButton());
+            LinearLayout buttons = buttonRow(
+                button(t("Connecter le Wi-Fi", "Connect Wi-Fi"), this::openWifi),
+                button(t("L’app sur mon téléphone", "App on my phone"), this::showQr),
+                button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()), languageButton());
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, -2); bp.topMargin = dp(20);
             welcome.addView(buttons, bp);
-            welcome.addView(button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()));
         }
         root.addView(welcome, fill()); nightCover.bringToFront(); applyNight();
     }
@@ -191,12 +202,12 @@ public class MainActivity extends Activity {
         DateFormat timeFormat = DateFormat.getTimeInstance(DateFormat.SHORT); timeFormat.setTimeZone(frameTimeZone());
         String sync = preferences.getLong("lastSync", 0) == 0 ? "" : " · " + timeFormat.format(new Date(preferences.getLong("lastSync", 0)));
         controls.addView(label(householdName() + " · " + photos.length() + t(" souvenirs", " memories") + sync, 17, GREEN, true));
-        LinearLayout buttons = new LinearLayout(this); buttons.setGravity(Gravity.CENTER);
-        buttons.addView(button(t("Photos", "Photos"), this::toggleControls));
-        buttons.addView(button("Wi-Fi", this::openWifi)); buttons.addView(button(t("Actualiser", "Refresh"), this::synchronize));
-        buttons.addView(button(t("Téléphone", "Phone"), this::showQr)); buttons.addView(languageButton());
-        controls.addView(buttons);
-        controls.addView(button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()));
+        LinearLayout buttons = buttonRow(button(t("Photos", "Photos"), this::toggleControls),
+            button("Wi-Fi", this::openWifi), button(t("Actualiser", "Refresh"), this::synchronize),
+            button(t("Téléphone", "Phone"), this::showQr),
+            button(t("Mises à jour", "Updates"), () -> new UpdateDialog(this).show()), languageButton());
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2); rowParams.topMargin = dp(10);
+        controls.addView(buttons, rowParams);
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM); root.addView(controls, p);
     }
     private void openWifi() {
