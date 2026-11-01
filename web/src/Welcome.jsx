@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { Copy, Check, LogIn, ShieldCheck } from 'lucide-react';
 import { useText, Button, Mascot, ErrorNotice } from './ui';
+import { invitationUrl } from './connection';
 
 function IphoneGuide({ invitation, onContinue }) {
   const t = useText(); const field = useRef(); const [copied, setCopied] = useState(false);
-  const link = `${location.origin}/#invitation=${invitation}`;
+  const link = invitationUrl(location.origin, invitation);
   async function copy() {
     try { await navigator.clipboard.writeText(link); setCopied(true); }
     catch { field.current?.focus(); field.current?.select(); }

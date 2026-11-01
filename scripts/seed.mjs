@@ -32,6 +32,6 @@ await db.runTransaction(async tx => {
   tx.set(db.collection('invitations').doc(digest), { memberId: adminId, expiresAt: Timestamp.fromMillis(Date.now() + 48 * 3600000), usedAt: null, createdAt: Date.now() });
 });
 const origin = local ? 'http://127.0.0.1:5000' : 'https://mosa-506ef.web.app';
-await writeFile(`.local/${local ? 'local' : 'production'}-admin-invitation.json`, JSON.stringify({ url: `${origin}/#invitation=${token}`, expires: new Date(Date.now() + 48 * 3600000).toISOString() }, null, 2));
+await writeFile(`.local/${local ? 'local' : 'production'}-admin-invitation.json`, JSON.stringify({ url: `${origin}/connexion/#invitation=${token}`, expires: new Date(Date.now() + 48 * 3600000).toISOString() }, null, 2));
 console.log(`Mosa ${projectId}: ${households.length} foyers préparés. Lien administrateur enregistré dans .local (non publié).`);
 process.exit(0);

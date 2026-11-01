@@ -1,6 +1,8 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+import { createHash } from 'node:crypto';
+import { Timestamp } from 'firebase-admin/firestore';
 import { adminContext } from '../scripts/admin-context.mjs';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, signInWithCustomToken } from 'firebase/auth';
@@ -144,7 +146,18 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       assert.equal(links[0].status, 201); assert.equal(links[1].status, 201);
       const result = await Promise.all(links.map(l => call('/auth/redeem', null, 'POST', { token: l.data.token })));
       assert.deepEqual(result.map(r => r.status).sort(), [200, 401]);
-      const used = result.findIndex(r => r.status === 200); assert.equal((await call('/auth/redeem', null, 'POST', { token: links[used].data.token })).status, 401);
+      const used = result.findIndex(r => r.status === 200);
+      assert.equal(result.find(r => r.status === 401).data.error, 'replaced_invitation');
+      const repeated = await call('/auth/redeem', null, 'POST', { token: links[used].data.token });
+      assert.equal(repeated.status, 401); assert.equal(repeated.data.error, 'used_invitation');
+    });
+    await t.test('un lien réellement expiré est distingué d’un lien déjà utilisé', async () => {
+      const link = await call('/admin/invitations', admin, 'POST', { memberId: 'a3-member' });
+      assert.equal(link.status, 201);
+      const hash = createHash('sha256').update(link.data.token).digest('hex');
+      await db.collection('invitations').doc(hash).update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
+      const expired = await call('/auth/redeem', null, 'POST', { token: link.data.token });
+      assert.equal(expired.status, 401); assert.equal(expired.data.error, 'expired_invitation');
     });
     await t.test('révocation immédiate du téléphone et des invitations anciennes', async () => {
       const invitation = await call('/admin/invitations', admin, 'POST', { memberId: 'a3-member' }); assert.equal(invitation.status, 201);

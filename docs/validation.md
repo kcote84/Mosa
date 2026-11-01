@@ -41,6 +41,8 @@
 
 ## À vérifier avant les cadeaux
 
+Invitations iPhone et cache : 8 tests unitaires et 15 tests d'intégration réussis. Les nouveaux liens `/connexion/` et les anciens liens racine sont acceptés; les invitations utilisées, remplacées et réellement expirées sont distinguées par l'API. Les sessions déjà ouvertes ne sont pas révoquées. Le parcours d'installation sur un iPhone physique doit être revérifié avec un nouveau membre; la récupération par collage dans l'app a été confirmée par l'utilisateur.
+
 Menu du cadre 0.4.4 (code 17) : compilation signée et lint Android validés; disposition horizontale partagée pour le menu photo et l'accueil sans photos. La vérification visuelle sur appareil reste à confirmer.
 
 Correctif de connexion PWA iPhone : formulaire bilingue de collage du lien dans l'app installée, validation de l'origine et du jeton, guide Safari/iPad avant consommation du lien. Les 8 tests unitaires passent. Dans le navigateur relié aux émulateurs, une adresse étrangère est refusée, une invitation fictive ouvre le bon compte membre sans module admin et la session reste active après rechargement. Le formulaire français et anglais est vérifié en largeur 390 px. La confirmation finale du maintien de session sur un iPhone physique reste une vérification utilisateur.

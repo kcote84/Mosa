@@ -82,7 +82,9 @@ api.post('/auth/redeem', wrap(async (req, res) => {
   if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{40,80}$/.test(token)) throw fail('invalid_invitation', 401);
   const ref = db.collection('invitations').doc(hash(token));
   const invitation = row(await ref.get());
-  if (!invitation || invitation.usedAt || invitation.expiresAt.toMillis() < now()) throw fail('expired_invitation', 401);
+  if (!invitation) throw fail('invalid_invitation', 401);
+  if (invitation.usedAt) throw fail('used_invitation', 401);
+  if (invitation.expiresAt.toMillis() < now()) throw fail('expired_invitation', 401);
   const member = await get('members', invitation.memberId);
   const household = member && await get('households', member.householdId);
   if (!member?.active || !household?.active) throw fail('access_revoked', 403);
@@ -92,9 +94,11 @@ api.post('/auth/redeem', wrap(async (req, res) => {
     const fresh = await tx.get(ref);
     const m = await tx.get(db.collection('members').doc(member.id));
     const h = await tx.get(db.collection('households').doc(member.householdId));
-    if (!fresh.exists || fresh.data().usedAt || fresh.data().expiresAt.toMillis() < now()) throw fail('expired_invitation', 401);
+    if (!fresh.exists) throw fail('invalid_invitation', 401);
+    if (fresh.data().usedAt) throw fail('used_invitation', 401);
+    if (fresh.data().expiresAt.toMillis() < now()) throw fail('expired_invitation', 401);
     if (!m.data()?.active || !h.data()?.active) throw fail('access_revoked', 403);
-    if (m.data().activeInvitationHash !== ref.id || (m.data().accessVersion || 0) !== (member.accessVersion || 0)) throw fail('expired_invitation', 401);
+    if (m.data().activeInvitationHash !== ref.id || (m.data().accessVersion || 0) !== (member.accessVersion || 0)) throw fail('replaced_invitation', 401);
     tx.update(ref, { usedAt: now() });
     tx.update(m.ref, { activeInvitationHash: null });
   });
