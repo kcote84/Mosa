@@ -14,14 +14,16 @@ final class UpdateScheduler {
     }
     static void schedule(Context context) {
         AlarmManager alarms = context.getSystemService(AlarmManager.class);
-        PendingIntent alarm = PendingIntent.getBroadcast(context, 20, new Intent(context, UpdateReceiver.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent alarm = PendingIntent.getBroadcast(context, 20, new Intent(context, UpdateReceiver.class).setAction("app.mosa.frame.MIDNIGHT_UPDATE"), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         long next = UpdatePolicy.nextMidnight(System.currentTimeMillis(), zone(context));
         if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, alarm);
         else alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, alarm);
     }
     static void checkIfDue(Context context) {
+        new FrameUpdater(context).recoverStalledInstall();
         android.content.SharedPreferences prefs = FrameUpdater.prefs(context);
-        if (UpdatePolicy.due(System.currentTimeMillis(), prefs.getLong("lastSuccess", 0), prefs.getLong("lastAttempt", 0), zone(context))) start(context);
+        if (UpdatePolicy.due(System.currentTimeMillis(), prefs.getLong("lastSuccess", 0), prefs.getLong("lastAttempt", 0), zone(context))
+            || new FrameUpdater(context).automaticReady(false)) start(context);
     }
     static void start(Context context) { context.startForegroundService(new Intent(context, UpdateService.class)); }
 }

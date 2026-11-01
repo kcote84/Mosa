@@ -34,7 +34,7 @@ final class UpdateDialog {
         switch (state) {
             case "checking": detail = t("Recherche en cours…", "Checking…"); break;
             case "downloading": detail = t("Téléchargement sécurisé en cours…", "Downloading securely…"); break;
-            case "ready": detail = t("La version ", "Version ") + prefs.getString("latestVersion", "") + t(" est prête. Android demandera de confirmer l’installation.", " is ready. Android will ask you to confirm installation."); break;
+            case "ready": detail = t("La version ", "Version ") + prefs.getString("latestVersion", "") + (MosaDeviceAdmin.isOwner(activity) ? t(" est prête pour l’installation automatique cette nuit.", " is ready to install automatically tonight.") : t(" est prête. Android demandera de confirmer l’installation.", " is ready. Android will ask you to confirm installation.")); break;
             case "up_to_date": detail = t("Mosa est à jour.", "Mosa is up to date."); break;
             case "installing": detail = t("Préparation de l’installation…", "Preparing installation…"); break;
             case "error":
@@ -47,7 +47,7 @@ final class UpdateDialog {
         DateFormat format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT); format.setTimeZone(TimeZone.getTimeZone(UpdateScheduler.zone(activity)));
         long last = prefs.getLong("lastSuccess", 0);
         message.setText(t("Version installée : ", "Installed version: ") + BuildConfig.VERSION_NAME + "\n\n" + detail + "\n\n"
-            + t("Recherche et téléchargement chaque nuit à minuit. L’installation attend votre confirmation.", "Checks and downloads every night at midnight. Installation waits for your confirmation.")
+            + (MosaDeviceAdmin.isOwner(activity) ? t("Mises à jour automatiques à minuit. Mosa se relance seul et garde vos photos. Une reprise peut se faire jusqu’à 5 h.", "Automatic updates at midnight. Mosa restarts itself and keeps your photos. Missed updates can be applied until 5 a.m.") : t("Recherche et téléchargement chaque nuit à minuit. L’installation attend votre confirmation.", "Checks and downloads every night at midnight. Installation waits for your confirmation."))
             + (last > 0 ? "\n\n" + t("Dernière vérification : ", "Last checked: ") + format.format(new Date(last)) : ""));
         Button action = dialog.getButton(-1);
         action.setText("ready".equals(state) ? t("Installer la mise à jour", "Install update") : t("Télécharger la dernière version", "Download latest version"));
@@ -55,7 +55,7 @@ final class UpdateDialog {
     }
     private void action() {
         if (!"ready".equals(prefs.getString("state", ""))) { UpdateScheduler.start(activity); return; }
-        if (!activity.getPackageManager().canRequestPackageInstalls()) {
+        if (!MosaDeviceAdmin.isOwner(activity) && !activity.getPackageManager().canRequestPackageInstalls()) {
             if (!Settings.canDrawOverlays(activity)) {
                 new AlertDialog.Builder(activity).setTitle("Mosa").setMessage(t("Kev doit terminer la préparation du bouton de retour avant d’ouvrir les réglages Android.", "Kev needs to finish preparing the return button before opening Android settings.")).setPositiveButton("OK", null).show(); return;
             }

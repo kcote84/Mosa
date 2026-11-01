@@ -50,18 +50,22 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state); store = new FrameStore(this); preferences = getSharedPreferences("mosa", MODE_PRIVATE);
+        manifest = store.manifest();
+        boolean afterUpdate = getIntent().getBooleanExtra("afterUpdate", false) || FrameUpdater.prefs(this).getInt("lastRunningVersion", BuildConfig.VERSION_CODE) != BuildConfig.VERSION_CODE;
+        FrameUpdater.prefs(this).edit().putInt("lastRunningVersion", BuildConfig.VERSION_CODE).apply();
         new FrameUpdater(this).reconcile();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); immersive();
+        if (FrameNight.active(manifest, System.currentTimeMillis())) { WindowManager.LayoutParams p = getWindow().getAttributes(); p.screenBrightness = 0.01f; getWindow().setAttributes(p); }
         root = new FrameLayout(this); root.setBackgroundColor(Color.BLACK); setContentView(root);
         photoView = new ImageView(this); photoView.setScaleType(ImageView.ScaleType.FIT_CENTER); root.addView(photoView, fill()); photoView.setOnClickListener(v -> toggleControls());
         nightCover = new View(this); nightCover.setBackgroundColor(Color.BLACK); nightCover.setVisibility(View.GONE); root.addView(nightCover, fill());
         nightCover.setOnClickListener(v -> { awakeUntil = System.currentTimeMillis() + 60000; applyNight(); showControls(); });
-        showWelcome(true);
-        handler.postDelayed(() -> { splash = false; loadManifest(store.manifest()); synchronize(); }, 2200);
+        if (afterUpdate) { splash = false; loadManifest(manifest); handler.post(this::synchronize); }
+        else { showWelcome(true); handler.postDelayed(() -> { splash = false; loadManifest(store.manifest()); synchronize(); }, 2200); }
         handler.post(nightTick);
         UpdateScheduler.schedule(this);
         UpdateScheduler.checkIfDue(this);
-        if (getIntent().getBooleanExtra("showUpdates", false)) handler.postDelayed(() -> new UpdateDialog(this).show(), 2500);
+        if (!afterUpdate && getIntent().getBooleanExtra("showUpdates", false)) handler.postDelayed(() -> new UpdateDialog(this).show(), 2500);
         connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         networkCallback = new ConnectivityManager.NetworkCallback() { @Override public void onAvailable(Network n) { handler.postDelayed(() -> { if (!splash) { synchronize(); UpdateScheduler.checkIfDue(MainActivity.this); } }, 2500); } };
         try { connectivity.registerDefaultNetworkCallback(networkCallback); } catch (Exception ignored) { }
@@ -226,21 +230,15 @@ public class MainActivity extends Activity {
         }));
     }
     private void applyNight() {
-        if (nightCover == null || splash) return;
-        boolean night = false; JSONObject settings = manifest == null ? null : manifest.optJSONObject("settings");
-        if (settings != null && settings.optBoolean("nightEnabled", true) && System.currentTimeMillis() > awakeUntil) {
-            try { String[] start = settings.optString("nightStart", "23:00").split(":"), end = settings.optString("nightEnd", "05:00").split(":");
-                int a = Integer.parseInt(start[0])*60 + Integer.parseInt(start[1]), b = Integer.parseInt(end[0])*60 + Integer.parseInt(end[1]);
-                Calendar calendar = Calendar.getInstance(frameTimeZone()); int current = calendar.get(Calendar.HOUR_OF_DAY)*60 + calendar.get(Calendar.MINUTE);
-                night = a != b && (a < b ? current >= a && current < b : current >= a || current < b);
-            } catch (Exception ignored) { }
-        }
+        if (nightCover == null) return;
+        boolean night = System.currentTimeMillis() > awakeUntil && FrameNight.active(manifest, System.currentTimeMillis());
         nightCover.setVisibility(night ? View.VISIBLE : View.GONE); if (night) nightCover.bringToFront();
         WindowManager.LayoutParams params = getWindow().getAttributes(); params.screenBrightness = night ? 0.01f : WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE; getWindow().setAttributes(params);
     }
     private void immersive() { getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE); }
     @Override protected void onResume() { super.onResume(); stopService(new Intent(this, WifiReturnService.class)); immersive(); if (store != null && !splash) { scheduleSlide(); synchronize(); } }
     @Override protected void onPause() { super.onPause(); handler.removeCallbacks(advance); }
+    @Override public void onUserInteraction() { super.onUserInteraction(); if (preferences != null) preferences.edit().putLong("lastInteraction", System.currentTimeMillis()).apply(); }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); if (intent.getBooleanExtra("showUpdates", false)) new UpdateDialog(this).show(); }
     @Override public void onBackPressed() { if (controls != null) toggleControls(); else showControls(); }
     @Override protected void onDestroy() { alive = false; handler.removeCallbacksAndMessages(null); network.shutdownNow(); images.shutdownNow(); try { if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) { } super.onDestroy(); }

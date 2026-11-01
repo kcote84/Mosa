@@ -44,13 +44,40 @@ L'application consomme puis supprime le fichier de préparation. Son accès dura
 - Le QR ouvre la PWA. Le lien personnel d'invitation reste nécessaire pour connecter chaque personne; le QR public n'accorde pas accès à l'album.
 - Le bouton « Mises à jour » fonctionne. Si souhaité, autoriser une fois Mosa à installer ses mises à jour dans les réglages Android; chaque installation demande encore une confirmation.
 
+### Préparer les installations sans clic
+
+Android 8.1 permet l'installation silencieuse à l'application désignée comme **gestionnaire de l'appareil** (`Device Owner`). Ce statut Android est distinct du rôle administrateur de l'album Mosa. Il donne des droits étendus et durables sur le cadre; son activation exige l'accord du propriétaire. Mosa n'utilise pas de politique d'effacement, de verrouillage, de collecte de comptes ou de contrôle du réseau. Son installateur accepte exclusivement son propre paquet signé, plus récent.
+
+Avant l'activation, vérifier qu'il n'y a aucun autre gestionnaire, aucun compte Android et aucun utilisateur secondaire. Si Android refuse, arrêter et examiner la cause; ne pas réinitialiser l'appareil ni modifier les indicateurs système pour contourner le refus.
+
+Une fois l'accord obtenu, installer une version 0.3.0 ou plus récente et exécuter :
+
+```powershell
+adb -s NUMERO_DU_CADRE shell dpm set-device-owner app.mosa.frame/.MosaDeviceAdmin
+```
+
+Pour un nouveau cadre, le script de préparation accepte le commutateur explicite `-EnableAutomaticUpdates` en plus de `-EnableWifiReturnButton`. Ce commutateur signifie que le propriétaire a accepté la gestion du cadre. Aucune réinitialisation n'est effectuée.
+
+Le retour au mode manuel est prévu via une commande USB protégée par la permission Android `DUMP` (accessible au shell ADB, pas aux applications ordinaires) :
+
+```powershell
+adb -s NUMERO_DU_CADRE shell am broadcast -n app.mosa.frame/.MaintenanceReceiver -a app.mosa.frame.RELEASE_MANAGEMENT
+adb -s NUMERO_DU_CADRE shell dumpsys device_policy
+```
+
+Cette commande retire le statut de gestionnaire sans appeler d'effacement. Vérifier son résultat sur chaque micrologiciel. Ne pas désinstaller Mosa pour retirer la gestion : la désinstallation effacerait les données de l'application.
+
 ## Mises à jour à distance
 
 À partir de 0.2.0, chaque cadre recherche et télécharge les nouvelles versions à **00:00 dans le fuseau du cadre** (initialement `America/Toronto`). Une alarme Android est recalculée après redémarrage, remplacement de l'application ou changement d'heure. Les journées de 23/25 heures restent correctes. Sur un Android récent qui refuse les alarmes exactes, l'heure peut être décalée par le système; le modèle testé utilise Android 8.1.
 
 Si Internet était absent à minuit, la prochaine synchronisation réessaie, avec au moins quinze minutes entre les échecs. Un nouveau jour permet une tentative à minuit même si la précédente était à 23:59. L'app vérifie aussi au démarrage si la recherche du jour a été manquée. La vérification ne réveille pas l'écran; le téléchargement ne lance jamais l'installateur pendant la nuit.
 
-Toucher une photo → **Mises à jour** → **Télécharger la dernière version**. Quand elle est prête : **Installer la mise à jour**. Android doit d'abord autoriser Mosa comme source d'installation, puis confirmer la mise à jour. Le cadre n'est pas administrateur de l'appareil : aucune installation silencieuse n'est promise. L'app redémarre après remplacement et conserve ses photos et son attribution.
+Sur les cadres gérés avec Mosa 0.3.0+, l'installation se lance automatiquement **entre 00:00 et 05:00**, après vérification du fichier. Elle attend au moins cinq minutes après la dernière interaction tactile. Une installation échouée n'est retentée automatiquement qu'une autre nuit pour la même version. Un système qui réclamerait quand même une confirmation ne provoque aucun écran nocturne : la session est abandonnée et la version attend. La fenêtre d'installation reste 00:00–05:00 même si l'horaire d'affichage de nuit a été personnalisé.
+
+L'application se relance avec ses photos après le remplacement. Le fond de démarrage est noir; le mode nuit est appliqué dès la création de la fenêtre et le logo de démarrage est sauté lors d'une mise à jour. Aucun redémarrage complet du cadre n'est demandé. Le mode nuit reste un affichage noir à faible luminosité, pas une coupure électrique de la dalle.
+
+Sur un cadre non géré : toucher une photo → **Mises à jour** → **Télécharger la dernière version** → **Installer la mise à jour**. Android doit autoriser Mosa comme source d'installation et confirmer chaque mise à jour.
 
 L'administration mobile propose le téléchargement du fichier destiné aux cadres. Le bouton « Mettre à jour Mosa sur ce téléphone » se trouve en bas de l'accueil et est accessible à tous les membres, y compris ceux sans rôle administrateur. Télécharger le fichier du cadre sur le téléphone n'ordonne pas une installation sur un cadre distant.
 
@@ -71,6 +98,15 @@ firebase deploy --only hosting --project mosa-506ef
 La préparation vérifie la signature de production et crée `web/public/updates/frame.json` ainsi qu'un APK au nom immuable. Garder les anciennes versions dans ce dossier pour les téléchargements en cours. Ces fichiers générés sont exclus de Git. Sur un nouveau PC, les recréer avec la clé sauvegardée avant publication; le contrôle `predeploy` refuse un site compilé dépourvu d'APK cohérent. La distribution utilise Firebase Hosting, sans requête Firestore quotidienne pour les mises à jour.
 
 En cas de défaut, corriger et publier un `versionCode` supérieur. Une rétrogradation Android n'est pas tentée automatiquement. Les cadres antérieurs à 0.2.0 nécessitent une première installation USB pour recevoir ce mécanisme.
+
+### Diagnostic et essai USB
+
+```powershell
+adb -s NUMERO_DU_CADRE shell am broadcast -n app.mosa.frame/.MaintenanceReceiver -a app.mosa.frame.UPDATE_STATUS
+adb -s NUMERO_DU_CADRE shell am broadcast -n app.mosa.frame/.MaintenanceReceiver -a app.mosa.frame.CHECK_UPDATES
+```
+
+Pour tester volontairement une installation silencieuse en dehors de la nuit, ajouter `--ez installNow true` à la seconde commande. Cette exception passe uniquement par le récepteur protégé pour maintenance; elle exige toujours que Mosa soit gestionnaire et conserve tous les contrôles du fichier. Aucun lien web ni membre de la famille ne peut l'invoquer. Ne publier et lancer une version d'essai qu'après avoir vérifié la sauvegarde de la signature, l'identité du cadre et le consentement à son mode géré.
 
 Conserver le Wi-Fi de la maison d'installation uniquement pour les essais; ne pas publier son mot de passe. Les destinataires pourront choisir leur propre réseau.
 

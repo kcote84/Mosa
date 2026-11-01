@@ -18,6 +18,8 @@
 - Mises à jour : quatre tests Android couvrant minuit à Toronto, les changements d'heure, le rattrapage et les délais de reprise, les chemins de téléchargement et les limites de taille/compatibilité. Compilation signée et lint sans erreur.
 - Cadre réel : passage USB de 0.1.3 à 0.2.0 avec photos conservées; alarme enregistrée pour minuit à Toronto (04:00 UTC le 1er novembre). Téléchargement automatique de 0.2.1 confirmé à l'écran « prête », après contrôles de taille, empreinte et signature. Ce résultat ne valide pas encore la confirmation dans l'installateur Android.
 - Version finale 0.2.2 publiée, fichier public retéléchargé et empreinte comparée au manifeste; installée sur le cadre de test par USB. Permission d'installation par Mosa laissée en attente de l'autorisation du propriétaire.
+- Préparation du mode automatique 0.3.x : sept tests Android réussis (plages horaires, changement d'heure, interaction récente, exigence du mode géré, limitation des nouvelles tentatives, affichage nocturne). Version 0.3.0 installée par USB, trois photos conservées et diagnostic protégé fonctionnel. Activation du statut de gestionnaire et essai réel encore en attente de l'accord du propriétaire.
+- Version candidate 0.3.2 publiée pour l'essai de remplacement 0.3.0 → 0.3.2. Le cadre est toujours non géré; aucune installation silencieuse n'a encore été exécutée. Le téléchargement peut fonctionner avant cette activation, mais son installation automatique reste impossible tant que le statut Android n'est pas accordé.
 
 ## À vérifier avant les cadeaux
 

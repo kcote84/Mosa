@@ -14,7 +14,7 @@ Application : https://mosa-506ef.web.app — l'accès à un album exige un lien 
 - Images optimisées en JPEG (maximum 1 920 px), miniatures de 480 px, métadonnées EXIF/GPS supprimées; les originaux ne sont pas conservés.
 - Cadres préattribués : première connexion Wi-Fi, puis téléchargement des photos en attente. Vérification toutes les 15 minutes; les images déjà présentes ne sont pas retéléchargées.
 - Photos persistantes hors ligne, démarrage automatique, bouton **ENGLISH** bleu et retour visible depuis les réglages Wi-Fi.
-- Recherche des mises à jour signées chaque nuit à minuit, téléchargement en arrière-plan et installation confirmée sur le cadre; boutons de mise à jour sur le cadre et dans l'administration mobile.
+- Recherche des mises à jour signées à minuit; installation automatique pendant la nuit sur les cadres préparés en mode géré, confirmation manuelle sur les autres. Boutons de mise à jour sur le cadre et dans la PWA.
 - Mode nuit initial **23:00–05:00, America/Toronto**. L'écran est assombri; il n'est pas électriquement éteint.
 
 ## Développer localement

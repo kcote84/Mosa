@@ -8,6 +8,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(action) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
             UpdateScheduler.schedule(context);
             Intent launch = new Intent(context, MainActivity.class);
+            launch.putExtra("afterUpdate", Intent.ACTION_MY_PACKAGE_REPLACED.equals(action));
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             context.startActivity(launch);
         }

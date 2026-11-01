@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
-    <application android:allowBackup="false" android:fullBackupContent="false" android:label="Mosa" android:icon="@drawable/app_icon" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:usesCleartextTraffic="false" android:supportsRtl="true">
+    <application android:allowBackup="false" android:fullBackupContent="false" android:label="Mosa" android:icon="@drawable/app_icon" android:theme="@style/MosaFrameTheme" android:usesCleartextTraffic="false" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask" android:configChanges="orientation|screenSize" android:screenOrientation="landscape">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
@@ -14,6 +14,11 @@
         <service android:name=".WifiReturnService" android:exported="false"/>
         <service android:name=".UpdateService" android:exported="false"/>
         <receiver android:name=".UpdateInstallReceiver" android:exported="false"/>
+        <receiver android:name=".MosaDeviceAdmin" android:permission="android.permission.BIND_DEVICE_ADMIN" android:exported="true">
+            <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin"/>
+            <intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/></intent-filter>
+        </receiver>
+        <receiver android:name=".MaintenanceReceiver" android:permission="android.permission.DUMP" android:exported="true"/>
         <receiver android:name=".UpdateReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.TIME_SET"/><action android:name="android.intent.action.TIMEZONE_CHANGED"/></intent-filter>
         </receiver>

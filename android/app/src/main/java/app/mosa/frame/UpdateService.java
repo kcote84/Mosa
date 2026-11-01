@@ -9,7 +9,7 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.os.PowerManager;
 
-/** Quiet background check: never opens the installer or wakes the screen at night. */
+/** Quiet check and, on managed frames, installation without opening confirmation screens. */
 public final class UpdateService extends Service {
     static volatile boolean running;
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -24,10 +24,11 @@ public final class UpdateService extends Service {
         if (running) return START_NOT_STICKY;
         if ("installing".equals(FrameUpdater.prefs(this).getString("state", ""))) { stopForeground(true); stopSelf(); return START_NOT_STICKY; }
         running = true;
+        final boolean installNow = intent != null && intent.getBooleanExtra("installNow", false);
         new Thread(() -> {
             PowerManager.WakeLock lock = getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Mosa:Update");
             lock.acquire(10 * 60 * 1000L);
-            try { new FrameUpdater(this).check(); }
+            try { FrameUpdater updater = new FrameUpdater(this); updater.check(); updater.installAutomatically(installNow); }
             finally { if (lock.isHeld()) lock.release(); running = false; stopForeground(true); stopSelf(); }
         }, "Mosa update").start();
         return START_NOT_STICKY;

@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory=$true)][string]$Adb,
     [Parameter(Mandatory=$true)][string]$Provisioning,
     [string]$Apk = (Join-Path $PSScriptRoot '..\android\app\build\outputs\apk\release\app-release.apk'),
-    [switch]$EnableWifiReturnButton
+    [switch]$EnableWifiReturnButton,
+    [switch]$EnableAutomaticUpdates
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -19,6 +20,14 @@ function Invoke-MosaAdb([string[]]$AdbArguments) {
 }
 Invoke-MosaAdb -AdbArguments @('get-state')
 Invoke-MosaAdb -AdbArguments @('install', '-r', $apkPath)
+if ($EnableAutomaticUpdates) {
+    # Opt-in device management. Android refuses incompatible/existing owners; never reset to force it.
+    $policy = (& $adbPath -s $Serial shell dumpsys device_policy) -join "`n"
+    if ($LASTEXITCODE -ne 0) { throw 'Impossible de vérifier le gestionnaire du cadre.' }
+    if ($policy -notmatch 'Device Owner:[\s\S]*?app\.mosa\.frame/\.MosaDeviceAdmin') {
+        Invoke-MosaAdb -AdbArguments @('shell', 'dpm', 'set-device-owner', 'app.mosa.frame/.MosaDeviceAdmin')
+    }
+}
 if ($EnableWifiReturnButton) {
     # This switch records the installer's explicit choice to grant the approved overlay permission.
     Invoke-MosaAdb -AdbArguments @('shell', 'appops', 'set', 'app.mosa.frame', 'SYSTEM_ALERT_WINDOW', 'allow')

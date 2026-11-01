@@ -23,7 +23,7 @@ export default function FrameUpdates() {
   useEffect(() => { check(); }, []);
   return <section className="panel update-panel">
     <div className="section-heading"><div><h2><Monitor size={23}/> {t('Mises à jour des cadres', 'Frame updates')}</h2>
-      <p>{t('Chaque cadre vérifie à minuit, à son heure locale configurée, et télécharge les nouveautés. La confirmation d’installation se fait sur le cadre.', 'Each frame checks at midnight in its configured time zone and downloads updates. Installation is confirmed on the frame.')}</p></div></div>
+      <p>{t('Chaque cadre vérifie à minuit. Les cadres préparés pour les mises à jour automatiques installent les nouveautés et relancent Mosa pendant la nuit. Les autres demandent une confirmation sur le cadre.', 'Each frame checks at midnight. Frames prepared for automatic updates install new versions and restart Mosa during the night. Other frames ask for confirmation on the frame.')}</p></div></div>
     <ErrorNotice error={error}/>
     {release && <p><strong>{t('Dernière version : ', 'Latest version: ')}{release.versionName}</strong> · {(release.bytes / 1048576).toFixed(1)} {t('Mo', 'MB')}</p>}
     <div className="update-actions">
