@@ -10,7 +10,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 final class FrameSync {
-    interface Listener { void onComplete(JSONObject manifest, String message); void onError(String code); default boolean needsRefresh() { return false; } }
+    interface Listener {
+        void onComplete(JSONObject manifest, String message);
+        void onError(String code);
+        default boolean needsRefresh() { return false; }
+        default void onUpdateRequest(JSONObject request) { }
+    }
     private final FrameStore store;
     FrameSync(FrameStore store) { this.store = store; }
     private static class ApiError extends IOException { final int status; ApiError(int status) { super("HTTP " + status); this.status = status; } }
@@ -96,6 +101,8 @@ final class FrameSync {
             String base = credentials.getString("apiBase"), token = credentials.getString("token");
             JSONObject previous = store.manifest(); String previousVersion = previous.optString("version", "");
             JSONObject next = json(base, "/api/frame/manifest" + (previousVersion.matches("[a-f0-9]{64}") ? "?version=" + previousVersion : ""), token, null);
+            // An urgent fix must not wait for (or depend on) successful image downloads.
+            listener.onUpdateRequest((next.optBoolean("unchanged") ? previous : next).optJSONObject("updateRequest"));
             if (next.optBoolean("unchanged")) {
                 store.context.getSharedPreferences("mosa", 0).edit().putLong("lastSync", System.currentTimeMillis()).apply();
                 heartbeat();

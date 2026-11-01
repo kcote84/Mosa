@@ -8,8 +8,8 @@ android {
         applicationId 'app.mosa.frame'
         minSdk 27
         targetSdk 28
-        versionCode 14
-        versionName '0.4.1'
+        versionCode 15
+        versionName '0.4.2'
     }
     buildFeatures { buildConfig true }
     signingConfigs {

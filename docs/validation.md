@@ -24,12 +24,13 @@
 
 ## Retraits immédiats et mises à jour Wi-Fi — 1er novembre 2026
 
-- Version signée 0.4.1 (code 14) publiée sur Firebase avec le serveur, les règles et la PWA.
+- Version signée 0.4.2 (code 15) publiée sur Firebase avec le serveur, les règles et la PWA. Le récepteur Wi-Fi est disponible dès 0.4.1.
 - 5 tests de politique, 12 tests Android et 14 tests d'intégration réussis; compilation Android/PWA et lint Android sans erreur (avertissements existants de compatibilité des outils conservés).
 - Les tests d'intégration écoutent réellement les signaux Firestore : masquage limité au foyer, retrait global, accès refusés aux autres foyers/photos/comptes et coupure après révocation/réenrôlement. Les commandes de mise à jour sont réservées à l'admin, persistantes, liées à la version publiée et protégées contre les accusés d'une demande précédente.
-- Vérification sur le serveur réel avec un cadre temporaire : session Android Firebase valide, lecture de son signal autorisée, autre foyer et accès direct aux photos refusés. Cadre et compte temporaires nettoyés.
+- Vérification de la session Firebase : lecture du signal autorisée pour son foyer; autre foyer et accès direct aux photos refusés. Les ressources de contrôle temporaires sont nettoyées après l'essai.
 - Interface locale testée en français et en anglais : sélection du cadre, confirmation et statut « En attente du cadre ». Le bouton ne présente pas une demande envoyée comme une installation terminée.
-- Le cadre réel annonce encore 0.3.4 avec dix photos au dernier contrôle. L'USB n'est plus connecté; Keven préfère le Wi-Fi. Première installation depuis le menu du cadre demandée pour activer le récepteur. La mesure réelle du délai de retrait et le déclenchement distant sur ce Moonka restent à vérifier après cette activation.
+- Les preuves de validation sur appareil, les mesures et les métadonnées des foyers restent dans les fichiers locaux exclus de Git.
+- Le correctif 0.4.2 traite la commande urgente dès le manifeste authentifié, avant les téléchargements de photos, et récupère une ancienne session d'installation bloquée avant d'attendre l'installateur.
 
 ## À vérifier avant les cadeaux
 

@@ -225,12 +225,12 @@ public class MainActivity extends Activity {
         status = "downloading";
         network.execute(() -> new FrameSync(store).sync(new FrameSync.Listener() {
             @Override public boolean needsRefresh() { return syncing.hasPending(); }
+            @Override public void onUpdateRequest(JSONObject request) { handler.post(() -> { if (alive) remoteUpdate.accept(request); }); }
             @Override public void onComplete(JSONObject value, String message) { handler.post(() -> {
                 if (!alive) return; status = message; loadManifest(value);
                 if (!"downloading".equals(message)) {
                     boolean pending = syncing.finish();
                     realtime.ensureConnected();
-                    if ("up_to_date".equals(message)) remoteUpdate.accept(value.optJSONObject("updateRequest"));
                     handler.removeCallbacks(periodicSync); handler.postDelayed(periodicSync, pending ? 0 : 900000);
                 }
             }); }

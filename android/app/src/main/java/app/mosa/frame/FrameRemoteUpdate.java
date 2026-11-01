@@ -18,6 +18,7 @@ final class FrameRemoteUpdate {
         SharedPreferences prefs = FrameUpdater.prefs(context);
         String id = command.optString("id");
         if (!RemoteUpdatePolicy.accept(id, prefs.getString("remoteRequestId", ""), command.optInt("targetVersion"), command.optLong("expiresAt"), System.currentTimeMillis())) return;
+        new FrameUpdater(context).recoverStalledInstall();
         if (UpdateService.running || "installing".equals(prefs.getString("state", ""))) {
             handler.postDelayed(() -> accept(command), 5000); return;
         }
