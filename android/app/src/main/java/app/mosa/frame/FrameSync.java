@@ -10,7 +10,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 final class FrameSync {
-    interface Listener { void onComplete(JSONObject manifest, String message); void onError(String code); }
+    interface Listener { void onComplete(JSONObject manifest, String message); void onError(String code); default boolean needsRefresh() { return false; } }
     private final FrameStore store;
     FrameSync(FrameStore store) { this.store = store; }
     private static class ApiError extends IOException { final int status; ApiError(int status) { super("HTTP " + status); this.status = status; } }
@@ -66,6 +66,22 @@ final class FrameSync {
             if (!temporary.renameTo(destination)) throw new IOException("Cannot commit photo");
         } finally { temporary.delete(); conn.disconnect(); }
     }
+    JSONObject realtimeSession() throws Exception {
+        JSONObject credentials = store.credentials();
+        if (credentials == null) throw new IOException("not_prepared");
+        return json(credentials.getString("apiBase"), "/api/frame/realtime-session", credentials.getString("token"), new JSONObject());
+    }
+    void heartbeat() throws Exception {
+        JSONObject credentials = store.credentials(); if (credentials == null) return;
+        JSONObject current = store.manifest();
+        android.content.SharedPreferences updates = FrameUpdater.prefs(store.context);
+        json(credentials.getString("apiBase"), "/api/frame/heartbeat", credentials.getString("token"), new JSONObject()
+            .put("cachedPhotos", current.optJSONArray("photos") == null ? 0 : current.getJSONArray("photos").length())
+            .put("appVersion", BuildConfig.VERSION_NAME).put("appVersionCode", BuildConfig.VERSION_CODE)
+            .put("managed", MosaDeviceAdmin.isOwner(store.context)).put("remoteUpdates", true)
+            .put("realtimeState", store.context.getSharedPreferences("mosa", 0).getString("realtimeState", "not_started"))
+            .put("updateRequestId", updates.getString("remoteRequestId", "")).put("updateState", updates.getString("state", "idle")));
+    }
     void sync(Listener listener) {
         try {
             JSONObject credentials = store.credentials(); File provisioning = store.provisioningFile();
@@ -82,7 +98,7 @@ final class FrameSync {
             JSONObject next = json(base, "/api/frame/manifest" + (previousVersion.matches("[a-f0-9]{64}") ? "?version=" + previousVersion : ""), token, null);
             if (next.optBoolean("unchanged")) {
                 store.context.getSharedPreferences("mosa", 0).edit().putLong("lastSync", System.currentTimeMillis()).apply();
-                json(base, "/api/frame/heartbeat", token, new JSONObject().put("cachedPhotos", previous.optJSONArray("photos") == null ? 0 : previous.getJSONArray("photos").length()).put("appVersion", BuildConfig.VERSION_NAME));
+                heartbeat();
                 listener.onComplete(previous, "up_to_date"); return;
             }
             JSONArray remotePhotos = next.getJSONArray("photos"); Set<String> allowed = new HashSet<>();
@@ -97,6 +113,8 @@ final class FrameSync {
             }
             long budget = 0; JSONArray available = new JSONArray();
             for (int i = 0; i < remotePhotos.length(); i++) {
+                // Do not finish a large stale download list after a new removal signal.
+                if (listener.needsRefresh()) { listener.onComplete(store.manifest(), "refresh_needed"); return; }
                 JSONObject photo = remotePhotos.getJSONObject(i); budget += Math.max(0, photo.optLong("bytes"));
                 if (budget > 5L * 1024 * 1024 * 1024) break;
                 download(base, token, photo); available.put(photo);
@@ -108,7 +126,7 @@ final class FrameSync {
             for (int i = 0; i < available.length(); i++) kept.add(available.getJSONObject(i).getString("id") + ".jpg");
             File[] cached = store.photosDir.listFiles(); if (cached != null) for (File file : cached) if (file.getName().endsWith(".jpg") && !kept.contains(file.getName())) file.delete();
             store.context.getSharedPreferences("mosa", 0).edit().putLong("lastSync", System.currentTimeMillis()).apply();
-            json(base, "/api/frame/heartbeat", token, new JSONObject().put("cachedPhotos", available.length()).put("appVersion", BuildConfig.VERSION_NAME));
+            heartbeat();
             listener.onComplete(next, "up_to_date");
         } catch (ApiError e) {
             if ((e.status == 401 || e.status == 403) && store.provisioningFile() == null) { store.revoke(); listener.onError("access_revoked"); }

@@ -13,3 +13,8 @@
 .update-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
 .update-actions .button { white-space: normal; text-align: center; }
 .phone-update { margin-top: 1rem; }
+.remote-update-controls { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #dce2d4; }
+.remote-update-controls > label { display: grid; gap: .5rem; margin-bottom: 1rem; }
+.remote-update-status { list-style: none; padding: 0; margin: 1rem 0; display: grid; gap: .75rem; }
+.remote-update-status li { display: grid; gap: .2rem; }
+.remote-update-status span { color: #596b55; font-size: .9rem; }

@@ -1,7 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // All data access goes through the authenticated API, including administration.
+    // Frames may listen to their own change counter only, never photos or accounts.
+    match /albumSignals/{householdId} {
+      allow get: if request.auth != null
+        && request.auth.token.householdId == householdId
+        && request.auth.uid == 'frame_' + request.auth.token.frameId
+        && get(/databases/$(database)/documents/frames/$(request.auth.token.frameId)).data.active == true
+        && get(/databases/$(database)/documents/frames/$(request.auth.token.frameId)).data.householdId == householdId
+        && get(/databases/$(database)/documents/frames/$(request.auth.token.frameId)).data.tokenHash == request.auth.token.frameTokenHash
+        && get(/databases/$(database)/documents/households/$(householdId)).data.active == true;
+    }
+    // Everything else still goes through the authenticated API.
     match /{document=**} { allow read, write: if false; }
   }
 }

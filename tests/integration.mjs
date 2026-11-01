@@ -1,9 +1,41 @@
-import { test } from 'node:test';
+import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { adminContext } from '../scripts/admin-context.mjs';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, connectAuthEmulator, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator, doc, getDoc, getDocs, collection, setDoc, onSnapshot, terminate } from 'firebase/firestore';
 const { db, auth, bucket } = adminContext(true);
+after(async () => { await db.terminate(); });
 const origin = 'http://127.0.0.1:5000';
+async function signalClient(frameToken, name) {
+  const session = await call('/frame/realtime-session', frameToken, 'POST');
+  assert.equal(session.status, 200);
+  const app = initializeApp({ projectId: 'demo-mosa', apiKey: 'demo-mosa-key', appId: '1:123:android:demo' }, name);
+  const clientAuth = getAuth(app); connectAuthEmulator(clientAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  const clientDb = getFirestore(app); connectFirestoreEmulator(clientDb, '127.0.0.1', 8080);
+  await signInWithCustomToken(clientAuth, session.data.customToken);
+  return { app, db: clientDb };
+}
+async function signalAfter(client, householdId, action) {
+  let unsubscribe;
+  let timer;
+  let actionDone;
+  try {
+    const revision = await new Promise((resolve, reject) => {
+      let initial;
+      timer = setTimeout(() => reject(new Error('Signal temps réel non reçu')), 15000);
+      unsubscribe = onSnapshot(doc(client.db, 'albumSignals', householdId), { includeMetadataChanges: true }, snapshot => {
+        if (snapshot.metadata.fromCache) return;
+        const revision = snapshot.data()?.revision || 0;
+        if (initial === undefined) { initial = revision; actionDone = Promise.resolve().then(action); actionDone.catch(reject); }
+        else if (revision > initial) resolve(revision);
+      }, reject);
+    });
+    await actionDone;
+    return revision;
+  } finally { clearTimeout(timer); unsubscribe?.(); }
+}
 async function login(uid) {
   const member = (await db.collection('members').doc(uid).get()).data();
   const token = await auth.createCustomToken(uid, { accessVersion: member.accessVersion || 0 });
@@ -17,7 +49,7 @@ async function call(path, token, method = 'GET', body) {
 test('parcours réels API, invitations, confidentialité et premier démarrage différé', { timeout: 180000 }, async t => {
   const admin = await login('admin-demo'), sender = await login('a2-member'), recipient = await login('a3-member'), otherBranch = await login('b2-member');
   const fixture = await sharp({ create: { width: 2200, height: 1400, channels: 3, background: '#e66a3c' } }).png().toBuffer();
-  let photoId; const frameIds = [];
+  let photoId; const frameIds = []; const signalClients = []; let signalA1, signalA3;
   try {
     await t.test('accès anonyme refusé, écriture directe Firebase refusée', async () => {
       assert.equal((await call('/photos')).status, 401);
@@ -54,8 +86,55 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       const unchanged = await call(`/frame/manifest?version=${manifest.data.version}`, frameToken); assert.equal(unchanged.data.unchanged, true); assert.equal(unchanged.data.photos, undefined);
       assert.equal((await call('/frame/enroll', null, 'POST', { token: enrollment.data.token })).status, 401);
     });
-    await t.test('masquage local sans supprimer chez les autres destinataires', async () => {
-      assert.equal((await call(`/photos/${photoId}/hide`, recipient, 'POST')).status, 200);
+    await t.test('signal privé : seulement le foyer du cadre, aucun accès aux photos/comptes/écritures', async () => {
+      assert.equal((await call('/frame/realtime-session', null, 'POST')).status, 401);
+      assert.equal((await call('/frame/realtime-session', sender, 'POST')).status, 401);
+      signalA1 = await signalClient(frameToken, 'frame-a1'); signalClients.push(signalA1);
+      assert.ok((await getDoc(doc(signalA1.db, 'albumSignals', 'home-a1'))).exists());
+      for (const path of ['albumSignals/home-a3', 'albumSignals/home-b2', `photos/${photoId}`, `frames/${frameIds[0]}`, 'households/home-a1', 'members/admin-demo']) {
+        await assert.rejects(getDoc(doc(signalA1.db, path)), e => e.code === 'permission-denied');
+      }
+      await assert.rejects(getDocs(collection(signalA1.db, 'albumSignals')), e => e.code === 'permission-denied');
+      await assert.rejects(setDoc(doc(signalA1.db, 'albumSignals', 'home-a1'), { revision: 123 }), e => e.code === 'permission-denied');
+      const created = await call('/admin/frames', admin, 'POST', { householdId: 'home-a3', label: 'TEST signal privé' });
+      assert.equal(created.status, 201); frameIds.push(created.data.id);
+      const enrollment = await call(`/admin/frames/${created.data.id}/enrollment`, admin, 'POST');
+      const enrolled = await call('/frame/enroll', null, 'POST', { token: enrollment.data.token });
+      signalA3 = await signalClient(enrolled.data.token, 'frame-a3'); signalClients.push(signalA3);
+    });
+    await t.test('mise à jour urgente : admin seulement, demande persistante, signal et accusé du cadre', async () => {
+      assert.equal((await call('/admin/frame-updates', sender, 'POST', { frameIds: [frameIds[0]] })).status, 403);
+      assert.equal((await call('/admin/frame-updates', null, 'POST', { frameIds: [frameIds[0]] })).status, 401);
+      assert.equal((await call('/admin/frame-updates', admin, 'POST', { frameIds: [] })).status, 400);
+      assert.equal((await call('/admin/frame-updates', admin, 'POST', { frameIds: [frameIds[0]] })).status, 409);
+      assert.equal((await call('/frame/heartbeat', frameToken, 'POST', { appVersion: '0.4.1', appVersionCode: 14, remoteUpdates: true, managed: true, cachedPhotos: 1 })).status, 200);
+      const before = await call('/frame/manifest', frameToken);
+      let pushed;
+      await signalAfter(signalA1, 'home-a1', async () => {
+        pushed = await call('/admin/frame-updates', admin, 'POST', { frameIds: [frameIds[0]], url: 'https://not-mosa.invalid/test.apk', targetVersion: 99999 });
+        assert.equal(pushed.status, 202);
+      });
+      const queued = await call(`/frame/manifest?version=${before.data.version}`, frameToken);
+      assert.notEqual(queued.data.unchanged, true);
+      assert.equal(queued.data.updateRequest.id, pushed.data.command.id);
+      assert.notEqual(queued.data.updateRequest.targetVersion, 99999);
+      assert.equal(queued.data.updateRequest.url, undefined);
+      const ref = db.collection('frames').doc(frameIds[0]);
+      // Simulate the next published version to test progress without installing Android in this test.
+      await ref.update({ 'remoteUpdate.targetVersion': 15 });
+      await call('/frame/heartbeat', frameToken, 'POST', { appVersionCode: 14, remoteUpdates: true, managed: true, updateRequestId: 'an-old-request', updateState: 'error' });
+      assert.equal((await ref.get()).data().remoteUpdate.state, 'queued');
+      await call('/frame/heartbeat', frameToken, 'POST', { appVersionCode: 14, remoteUpdates: true, managed: true, updateRequestId: pushed.data.command.id, updateState: 'checking' });
+      assert.equal((await ref.get()).data().remoteUpdate.state, 'checking');
+      await call('/frame/heartbeat', frameToken, 'POST', { appVersionCode: 15, remoteUpdates: true, managed: true, updateRequestId: pushed.data.command.id, updateState: 'up_to_date' });
+      assert.equal((await ref.get()).data().remoteUpdate.state, 'installed');
+    });
+    await t.test('masquage local immédiatement signalé au seul foyer concerné', async () => {
+      const before = (await db.collection('albumSignals').doc('home-a1').get()).data().revision;
+      await signalAfter(signalA3, 'home-a3', async () => {
+        assert.equal((await call(`/photos/${photoId}/hide`, recipient, 'POST')).status, 200);
+      });
+      assert.equal((await db.collection('albumSignals').doc('home-a1').get()).data().revision, before);
       assert.equal((await call(`/photos/${photoId}/image`, recipient)).status, 404);
       assert.equal((await call(`/frame/photos/${photoId}`, frameToken)).status, 200);
       assert.equal((await call(`/photos/${photoId}`, recipient, 'DELETE')).status, 404);
@@ -79,15 +158,32 @@ test('parcours réels API, invitations, confidentialité et premier démarrage d
       assert.deepEqual(results.map(r => r.status).sort(), [200,401]);
       assert.equal((await call('/frame/manifest', frameToken)).status, 401);
       frameToken = results.find(r => r.status === 200).data.token;
+      await assert.rejects(getDoc(doc(signalA1.db, 'albumSignals', 'home-a1')), e => e.code === 'permission-denied');
+      signalA1 = await signalClient(frameToken, 'frame-a1-renewed'); signalClients.push(signalA1);
     });
     await t.test('suppression globale : manifest et accès image retirés', async () => {
-      assert.equal((await call(`/photos/${photoId}`, sender, 'DELETE')).status, 200);
+      await signalAfter(signalA1, 'home-a1', async () => {
+        assert.equal((await call(`/photos/${photoId}`, sender, 'DELETE')).status, 200);
+      });
       const manifest = await call('/frame/manifest', frameToken); assert.ok(!manifest.data.photos.some(p => p.id === photoId));
       assert.equal((await call(`/frame/photos/${photoId}`, frameToken)).status, 404);
       assert.equal((await call(`/photos/${photoId}/image`, sender)).status, 404);
     });
+    await t.test('désactivation du cadre et du foyer coupe aussi le signal', async () => {
+      const ref = db.collection('frames').doc(frameIds[0]);
+      await ref.update({ active: false });
+      await assert.rejects(getDoc(doc(signalA1.db, 'albumSignals', 'home-a1')), e => e.code === 'permission-denied');
+      assert.equal((await call('/frame/realtime-session', frameToken, 'POST')).status, 401);
+      await ref.update({ active: true });
+      const household = db.collection('households').doc('home-a1');
+      try {
+        await household.update({ active: false });
+        await assert.rejects(getDoc(doc(signalA1.db, 'albumSignals', 'home-a1')), e => e.code === 'permission-denied');
+      } finally { await household.update({ active: true }); }
+    });
   } finally {
+    for (const client of signalClients) { await terminate(client.db); await deleteApp(client.app); }
     if (photoId) { const p = (await db.collection('photos').doc(photoId).get()).data(); if (p) { await Promise.allSettled([bucket.file(p.storagePath).delete({ ignoreNotFound: true }), bucket.file(p.thumbPath).delete({ ignoreNotFound: true })]); await db.collection('photos').doc(photoId).delete(); } }
-    for (const id of frameIds) await db.collection('frames').doc(id).delete();
+    for (const id of frameIds) { await db.collection('frames').doc(id).delete(); await auth.deleteUser(`frame_${id}`).catch(() => {}); }
   }
 });

@@ -26,7 +26,9 @@ public final class MaintenanceReceiver extends BroadcastReceiver {
                     .put("lastCheck", p.getLong("lastSuccess", 0)).put("lastInstallStatus", p.getInt("lastInstallStatus", -999))
                     .put("automaticAttemptVersion", p.getInt("automaticAttemptVersion", 0)).put("automaticAttemptAt", p.getLong("automaticAttemptAt", 0))
                     .put("photoCount", manifest.optJSONArray("photos") == null ? 0 : manifest.getJSONArray("photos").length())
-                    .put("night", FrameNight.active(context, System.currentTimeMillis())).toString());
+                    .put("night", FrameNight.active(context, System.currentTimeMillis()))
+                    .put("realtimeState", context.getSharedPreferences("mosa", 0).getString("realtimeState", "not_started"))
+                    .put("lastRealtimeSignal", context.getSharedPreferences("mosa", 0).getLong("lastRealtimeSignal", 0)).toString());
             } else { setResultCode(1); return; }
             setResultCode(0);
         } catch (Exception e) { setResultCode(1); setResultData(e.getClass().getSimpleName()); }

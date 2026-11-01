@@ -8,8 +8,8 @@ android {
         applicationId 'app.mosa.frame'
         minSdk 27
         targetSdk 28
-        versionCode 12
-        versionName '0.3.4'
+        versionCode 14
+        versionName '0.4.1'
     }
     buildFeatures { buildConfig true }
     signingConfigs {
@@ -26,6 +26,9 @@ android {
     compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
 }
 dependencies {
+    implementation platform('com.google.firebase:firebase-bom:35.1.0')
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.zxing:core:3.5.3'
     testImplementation 'junit:junit:4.13.2'
 }

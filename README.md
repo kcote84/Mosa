@@ -12,9 +12,10 @@ Application : https://mosa-506ef.web.app — l'accès à un album exige un lien 
 - Un compte par personne, un album par foyer. Un foyer exclu ne reçoit pas la photo sur son cadre ni dans son album mobile. L'auteur conserve accès à ses propres envois; l'administrateur dispose d'un espace distinct de modération.
 - Invitations personnelles à usage unique (48 h), sans mot de passe. Révocation des sessions et anciens liens depuis l'administration.
 - Images optimisées en JPEG (maximum 1 920 px), miniatures de 480 px, métadonnées EXIF/GPS supprimées; les originaux ne sont pas conservés.
-- Cadres préattribués : première connexion Wi-Fi, puis téléchargement des photos en attente. Vérification toutes les 15 minutes; les images déjà présentes ne sont pas retéléchargées.
+- Cadres préattribués : première connexion Wi-Fi, puis téléchargement des photos en attente. Dès la version 0.4.0, un signal privé déclenche la synchronisation à chaque ajout, masquage ou retrait; vérification toutes les 15 minutes en secours. Les images déjà présentes ne sont pas retéléchargées.
 - Photos persistantes hors ligne, démarrage automatique, bouton **ENGLISH** bleu et retour visible depuis les réglages Wi-Fi.
 - Recherche des mises à jour signées à minuit; installation automatique pendant la nuit sur les cadres préparés en mode géré, confirmation manuelle sur les autres. Boutons de mise à jour sur le cadre et dans la PWA.
+- Depuis la version 0.4.1, l'administrateur peut aussi déclencher une mise à jour urgente par Wi-Fi, pour un cadre ou tous les cadres compatibles. Une demande hors ligne attend jusqu'à 7 jours; son résultat est suivi dans l'administration.
 - Mode nuit initial **23:00–05:00, America/Toronto**. L'écran est assombri; il n'est pas électriquement éteint.
 
 ## Développer localement

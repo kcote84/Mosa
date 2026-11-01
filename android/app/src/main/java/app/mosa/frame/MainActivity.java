@@ -32,13 +32,14 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
     private static final int GREEN = Color.rgb(23,62,49), CREAM = Color.rgb(255,248,239), MUTED = Color.rgb(106,122,99);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService network = Executors.newSingleThreadExecutor(), images = Executors.newSingleThreadExecutor();
-    private final AtomicBoolean syncing = new AtomicBoolean(false);
+    private final SyncGate syncing = new SyncGate();
+    private FrameRealtime realtime;
+    private FrameRemoteUpdate remoteUpdate;
     private FrameStore store; private JSONObject manifest; private SharedPreferences preferences;
     private FrameLayout root; private ImageView photoView; private LinearLayout welcome, controls; private View nightCover;
     private JSONArray photos = new JSONArray(); private int index = 0; private long imageGeneration = 0, awakeUntil = 0;
@@ -51,6 +52,8 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state); store = new FrameStore(this); preferences = getSharedPreferences("mosa", MODE_PRIVATE);
         manifest = store.manifest();
+        realtime = new FrameRealtime(store, this::synchronize);
+        remoteUpdate = new FrameRemoteUpdate(this);
         boolean afterUpdate = getIntent().getBooleanExtra("afterUpdate", false) || FrameUpdater.prefs(this).getInt("lastRunningVersion", BuildConfig.VERSION_CODE) != BuildConfig.VERSION_CODE;
         FrameUpdater.prefs(this).edit().putInt("lastRunningVersion", BuildConfig.VERSION_CODE).apply();
         new FrameUpdater(this).reconcile();
@@ -145,6 +148,8 @@ public class MainActivity extends Activity {
             }
         }
         if (index >= photos.length()) index = 0;
+        // Drop the removed bitmap immediately, including a decoder still in flight.
+        ++imageGeneration; photoView.setImageDrawable(null);
         if (photos.length() == 0) showWelcome(false); else { if (welcome != null) { root.removeView(welcome); welcome = null; } showPhoto(); }
         if (controls != null) showControls(); scheduleSlide(); applyNight();
     }
@@ -216,16 +221,23 @@ public class MainActivity extends Activity {
         } catch (Exception e) { Toast.makeText(this, t("Le QR sera disponible après la préparation.", "The QR will be available after setup."), Toast.LENGTH_LONG).show(); }
     }
     private void synchronize() {
-        if (!alive || !syncing.compareAndSet(false, true)) return;
+        if (!alive || !syncing.begin()) return;
         status = "downloading";
         network.execute(() -> new FrameSync(store).sync(new FrameSync.Listener() {
+            @Override public boolean needsRefresh() { return syncing.hasPending(); }
             @Override public void onComplete(JSONObject value, String message) { handler.post(() -> {
                 if (!alive) return; status = message; loadManifest(value);
-                if (!"downloading".equals(message)) { syncing.set(false); handler.removeCallbacks(periodicSync); handler.postDelayed(periodicSync, 900000); }
+                if (!"downloading".equals(message)) {
+                    boolean pending = syncing.finish();
+                    realtime.ensureConnected();
+                    if ("up_to_date".equals(message)) remoteUpdate.accept(value.optJSONObject("updateRequest"));
+                    handler.removeCallbacks(periodicSync); handler.postDelayed(periodicSync, pending ? 0 : 900000);
+                }
             }); }
             @Override public void onError(String code) { handler.post(() -> {
-                if (!alive) return; syncing.set(false); status = code; loadManifest(store.manifest());
-                handler.removeCallbacks(periodicSync); handler.postDelayed(periodicSync, 60000);
+                if (!alive) return; boolean pending = syncing.finish(); status = code; loadManifest(store.manifest());
+                if ("access_revoked".equals(code)) realtime.stop();
+                handler.removeCallbacks(periodicSync); handler.postDelayed(periodicSync, pending ? 0 : 60000);
             }); }
         }));
     }
@@ -241,5 +253,5 @@ public class MainActivity extends Activity {
     @Override public void onUserInteraction() { super.onUserInteraction(); if (preferences != null) preferences.edit().putLong("lastInteraction", System.currentTimeMillis()).apply(); }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); if (intent.getBooleanExtra("showUpdates", false)) new UpdateDialog(this).show(); }
     @Override public void onBackPressed() { if (controls != null) toggleControls(); else showControls(); }
-    @Override protected void onDestroy() { alive = false; handler.removeCallbacksAndMessages(null); network.shutdownNow(); images.shutdownNow(); try { if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) { } super.onDestroy(); }
+    @Override protected void onDestroy() { alive = false; if (realtime != null) realtime.stop(); if (remoteUpdate != null) remoteUpdate.stop(); handler.removeCallbacksAndMessages(null); network.shutdownNow(); images.shutdownNow(); try { if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) { } super.onDestroy(); }
 }

@@ -25,6 +25,11 @@ const get = async (collection, id) => typeof id === 'string' && /^[a-zA-Z0-9_-]{
 const publicFrame = f => { const { tokenHash, activeEnrollmentHash, ...safe } = f; return safe; };
 const wrap = fn => async (req, res, next) => { try { await fn(req, res, next); } catch (e) { next(e); } };
 const bearer = req => /^Bearer ([A-Za-z0-9._~-]+)$/.exec(req.get('authorization') || '')?.[1];
+// The signal contains no photos or personal data. It commits with the album change.
+function albumChanged(batch, householdId) {
+  batch.update(db.collection('households').doc(householdId), { photoRevision: FieldValue.increment(1) });
+  batch.set(db.collection('albumSignals').doc(householdId), { revision: FieldValue.increment(1) }, { merge: true });
+}
 
 async function throttle(req, operation, maximum = 40) {
   const window = Math.floor(now() / (15 * 60 * 1000));
@@ -150,7 +155,7 @@ api.post('/photos', memberAuth, wrap(async (req, res) => {
     batch.set(ref, { ownerUid: req.member.id, ownerHouseholdId: req.member.householdId, ownerName: req.member.name,
       recipientIds, visibleTo: recipientIds, hiddenFor: [], caption: text(req.body.caption), fit: ['contain', 'cover'].includes(req.body.fit) ? req.body.fit : 'contain',
       storagePath, thumbPath, sha256: hash(optimized), bytes: optimized.length, width: info.width, height: info.height, createdAt: now(), deleted: false });
-    recipientIds.forEach(id => batch.update(db.collection('households').doc(id), { photoRevision: FieldValue.increment(1) }));
+    recipientIds.forEach(id => albumChanged(batch, id));
     await batch.commit();
   } catch (e) { await Promise.allSettled([bucket.file(storagePath).delete({ ignoreNotFound: true }), bucket.file(thumbPath).delete({ ignoreNotFound: true })]); throw e; }
   res.status(201).json({ id: ref.id, bytes: optimized.length, width: info.width, height: info.height });
@@ -160,7 +165,7 @@ api.post('/photos/:id/hide', memberAuth, wrap(async (req, res) => {
   if (!photo || !isRecipient(photo, req.member.householdId)) throw fail('photo_not_found', 404);
   const batch = db.batch();
   batch.update(db.collection('photos').doc(photo.id), { hiddenFor: FieldValue.arrayUnion(req.member.householdId), visibleTo: FieldValue.arrayRemove(req.member.householdId) });
-  batch.update(db.collection('households').doc(req.member.householdId), { photoRevision: FieldValue.increment(1) });
+  albumChanged(batch, req.member.householdId);
   await batch.commit();
   res.json({ ok: true });
 }));
@@ -170,7 +175,7 @@ api.delete('/photos/:id', memberAuth, wrap(async (req, res) => {
   // Revoke access before removing the objects; a storage outage cannot leave them readable.
   const batch = db.batch();
   batch.update(db.collection('photos').doc(photo.id), { deleted: true, deletedAt: now() });
-  photo.recipientIds.forEach(id => batch.update(db.collection('households').doc(id), { photoRevision: FieldValue.increment(1) }));
+  photo.recipientIds.forEach(id => albumChanged(batch, id));
   await batch.commit();
   const deletion = await Promise.allSettled([bucket.file(photo.storagePath).delete({ ignoreNotFound: true }), bucket.file(photo.thumbPath).delete({ ignoreNotFound: true })]);
   await db.collection('photos').doc(photo.id).update({ storagePurged: deletion.every(r => r.status === 'fulfilled') });
@@ -208,18 +213,47 @@ api.post('/frame/enroll', wrap(async (req, res) => {
   });
   res.json({ ...frameResult, token });
 }));
+api.post('/frame/realtime-session', frameAuth, wrap(async (req, res) => {
+  const customToken = await auth.createCustomToken(`frame_${req.frame.id}`, {
+    frameId: req.frame.id, householdId: req.frame.householdId, frameTokenHash: req.frame.tokenHash
+  });
+  res.json({ customToken, householdId: req.frame.householdId, firebase: {
+    projectId, apiKey: process.env.MOSA_ANDROID_API_KEY || process.env.MOSA_FIREBASE_API_KEY || (local ? 'demo-mosa-key' : ''),
+    appId: process.env.MOSA_ANDROID_APP_ID || (local ? '1:123:android:demo' : '')
+  } });
+}));
 api.get('/frame/manifest', frameAuth, wrap(async (req, res) => {
-  const version = hash(JSON.stringify([req.household.photoRevision || 0, req.household.name, req.frame.settings]));
+  const version = hash(JSON.stringify([req.household.photoRevision || 0, req.household.name, req.frame.settings, req.frame.remoteUpdate?.id || null]));
   await db.collection('frames').doc(req.frame.id).update({ lastSeen: now() });
   if (req.query.version === version) return res.json({ unchanged: true, version, serverTime: now(), syncIntervalSeconds: 900 });
   const photos = rows(await db.collection('photos').where('visibleTo', 'array-contains', req.frame.householdId).get()).filter(p => isRecipient(p, req.frame.householdId)).sort((a, b) => b.createdAt - a.createdAt);
   res.json({ version, householdId: req.frame.householdId, householdName: req.household.name,
-    settings: req.frame.settings, syncIntervalSeconds: 900, serverTime: now(),
+    settings: req.frame.settings, updateRequest: req.frame.remoteUpdate || null, syncIntervalSeconds: 900, serverTime: now(),
     photos: photos.map(p => ({ id: p.id, sha256: p.sha256, bytes: p.bytes, width: p.width, height: p.height, fit: p.fit, caption: p.caption, path: `/api/frame/photos/${p.id}` })) });
 }));
 api.get('/frame/photos/:id', frameAuth, wrap((req, res) => sendImage(req, res, true)));
 api.post('/frame/heartbeat', frameAuth, wrap(async (req, res) => {
-  await db.collection('frames').doc(req.frame.id).update({ lastSeen: now(), lastSync: now(), cachedPhotos: Math.max(0, Math.min(100000, Number(req.body.cachedPhotos) || 0)), appVersion: text(req.body.appVersion, 30), syncError: text(req.body.error, 150) });
+  const versionCode = Number.isSafeInteger(req.body.appVersionCode) ? req.body.appVersionCode : 0;
+  const changes = { lastSeen: now(), lastSync: now(), cachedPhotos: Math.max(0, Math.min(100000, Number(req.body.cachedPhotos) || 0)),
+    appVersion: text(req.body.appVersion, 30), appVersionCode: versionCode, syncError: text(req.body.error, 150),
+    remoteUpdates: req.body.remoteUpdates === true && versionCode >= 14, managed: req.body.managed === true,
+    realtimeState: text(req.body.realtimeState, 30) };
+  const ref = db.collection('frames').doc(req.frame.id);
+  if (req.frame.remoteUpdate) {
+    await db.runTransaction(async tx => {
+      const frame = (await tx.get(ref)).data(), command = frame?.remoteUpdate;
+      // A delayed acknowledgment must not overwrite a newer admin request.
+      if (command && (versionCode >= command.targetVersion || command.id === req.body.updateRequestId)) {
+        const status = text(req.body.updateState, 40);
+        changes['remoteUpdate.state'] = versionCode >= command.targetVersion ? 'installed'
+          : command.expiresAt < now() ? 'expired'
+          : ['checking', 'downloading', 'installing', 'error', 'received'].includes(status) ? status
+          : changes.managed ? 'retry_required' : 'manual_required';
+        changes['remoteUpdate.reportedAt'] = now();
+      }
+      tx.update(ref, changes);
+    });
+  } else await ref.update(changes);
   res.json({ ok: true });
 }));
 
@@ -227,6 +261,33 @@ api.use('/admin', memberAuth, adminAuth);
 api.get('/admin/overview', wrap(async (req, res) => {
   const [households, members, frames] = await Promise.all(['households', 'members', 'frames'].map(c => db.collection(c).get()));
   res.json({ households: rows(households), members: rows(members), frames: rows(frames).map(publicFrame) });
+}));
+api.post('/admin/frame-updates', wrap(async (req, res) => {
+  const ids = req.body.frameIds;
+  if (!Array.isArray(ids) || !ids.length || ids.length > 30 || ids.some(id => typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(id))) throw fail('choose_frames');
+  // The client cannot nominate an APK, URL, signing key or arbitrary version.
+  const origin = local ? 'http://127.0.0.1:5000' : 'https://mosa-506ef.web.app';
+  const response = await fetch(`${origin}/updates/frame.json`, { signal: AbortSignal.timeout(10000), redirect: 'error', cache: 'no-store' });
+  if (!response.ok) throw fail('update_unavailable', 503);
+  const release = await response.json();
+  if (release.packageName !== 'app.mosa.frame' || !Number.isSafeInteger(release.versionCode) || release.versionCode < 1
+    || typeof release.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(release.sha256)
+    || !/^[0-9]+\.[0-9]+\.[0-9]+$/.test(release.versionName || '')
+    || release.path !== `/updates/mosa-frame-${release.versionCode}-${release.sha256}.apk`) throw fail('update_unavailable', 503);
+  const frameIds = [...new Set(ids)];
+  const command = { id: randomBytes(16).toString('hex'), targetVersion: release.versionCode, targetName: release.versionName,
+    requestedAt: now(), expiresAt: now() + 7 * 86400000, state: 'queued' };
+  await db.runTransaction(async tx => {
+    const frames = await Promise.all(frameIds.map(id => tx.get(db.collection('frames').doc(id))));
+    if (frames.some(f => !f.data()?.active || !f.data()?.tokenHash)) throw fail('frame_not_found', 404);
+    if (frames.some(f => !f.data().remoteUpdates)) throw fail('update_bootstrap_required', 409);
+    const householdIds = [...new Set(frames.map(f => f.data().householdId))];
+    const households = await Promise.all(householdIds.map(id => tx.get(db.collection('households').doc(id))));
+    if (households.some(h => !h.data()?.active)) throw fail('frame_access_revoked', 409);
+    frames.forEach(f => tx.update(f.ref, { remoteUpdate: command }));
+    householdIds.forEach(id => tx.set(db.collection('albumSignals').doc(id), { revision: FieldValue.increment(1) }, { merge: true }));
+  });
+  res.status(202).json({ frameIds, command });
 }));
 api.post('/admin/households', wrap(async (req, res) => {
   const ref = db.collection('households').doc();

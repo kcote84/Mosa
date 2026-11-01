@@ -23,7 +23,7 @@ final class UpdatePolicy {
     }
     static boolean automaticAllowed(long now, String zone, boolean managed, long lastInteraction, int version, int attemptedVersion, long attemptedAt, boolean forceNow) {
         if (!managed || version <= 0) return false;
-        if (forceNow) return true; // Only an explicit USB maintenance command can override the window.
+        if (forceNow) return true; // Explicit USB maintenance or an authenticated admin push.
         int hour = Instant.ofEpochMilli(now).atZone(ZoneId.of(zone)).getHour();
         boolean quiet = lastInteraction <= 0 || lastInteraction > now || now - lastInteraction >= 5 * 60 * 1000L;
         boolean alreadyTried = attemptedVersion == version && attemptedAt > 0 && day(attemptedAt, zone).equals(day(now, zone));

@@ -22,6 +22,15 @@
 - Essai vidéo en mode nuit : un ancien écran Frameo réapparaissait brièvement lors du premier remplacement. Frameo a été désactivé sans effacement, puis l'essai final ne montre que du noir sur les neuf images encodées (`YMAX = 16`, noir vidéo). La préparation des futurs cadres désactive aussi cet ancien lanceur s'il est présent. Preuves locales : `qa/auto-final.mp4` et `qa/automatic-updates-complete.png`.
 - Les réglages de nuit temporaires de l'essai ont été restaurés à 23 h–5 h. Photos de nouveau affichées. Alarme exacte du prochain contrôle enregistrée pour le 1er novembre à 04:00 UTC, soit minuit à Toronto. Le test immédiat a utilisé la commande USB protégée; le déclenchement à l'heure réelle reste à observer durant une nuit d'utilisation.
 
+## Retraits immédiats et mises à jour Wi-Fi — 1er novembre 2026
+
+- Version signée 0.4.1 (code 14) publiée sur Firebase avec le serveur, les règles et la PWA.
+- 5 tests de politique, 12 tests Android et 14 tests d'intégration réussis; compilation Android/PWA et lint Android sans erreur (avertissements existants de compatibilité des outils conservés).
+- Les tests d'intégration écoutent réellement les signaux Firestore : masquage limité au foyer, retrait global, accès refusés aux autres foyers/photos/comptes et coupure après révocation/réenrôlement. Les commandes de mise à jour sont réservées à l'admin, persistantes, liées à la version publiée et protégées contre les accusés d'une demande précédente.
+- Vérification sur le serveur réel avec un cadre temporaire : session Android Firebase valide, lecture de son signal autorisée, autre foyer et accès direct aux photos refusés. Cadre et compte temporaires nettoyés.
+- Interface locale testée en français et en anglais : sélection du cadre, confirmation et statut « En attente du cadre ». Le bouton ne présente pas une demande envoyée comme une installation terminée.
+- Le cadre réel annonce encore 0.3.4 avec dix photos au dernier contrôle. L'USB n'est plus connecté; Keven préfère le Wi-Fi. Première installation depuis le menu du cadre demandée pour activer le récepteur. La mesure réelle du délai de retrait et le déclenchement distant sur ce Moonka restent à vérifier après cette activation.
+
 ## À vérifier avant les cadeaux
 
 Correctif du bouton d'installation : l'offre est retirée dès son utilisation ou l'événement `appinstalled`, et ignorée lorsque Mosa est ouvert en application autonome (y compris `navigator.standalone` sur iOS). Les changements de mode d'affichage sont suivis. Aucun indicateur permanent n'est enregistré : une réinstallation reste possible si le navigateur la propose après une désinstallation. Compilation validée; confirmation sur le téléphone après fermeture et réouverture de Mosa encore nécessaire.

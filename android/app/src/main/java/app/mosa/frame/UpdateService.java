@@ -28,10 +28,16 @@ public final class UpdateService extends Service {
         new Thread(() -> {
             PowerManager.WakeLock lock = getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Mosa:Update");
             lock.acquire(10 * 60 * 1000L);
-            try { FrameUpdater updater = new FrameUpdater(this); updater.check(); updater.installAutomatically(installNow); }
+            try {
+                FrameUpdater updater = new FrameUpdater(this); updater.check();
+                if (installNow) report();
+                updater.installAutomatically(installNow);
+                if (installNow) report();
+            }
             finally { if (lock.isHeld()) lock.release(); running = false; stopForeground(true); stopSelf(); }
         }, "Mosa update").start();
         return START_NOT_STICKY;
     }
     @Override public IBinder onBind(Intent intent) { return null; }
+    private void report() { try { new FrameSync(new FrameStore(this)).heartbeat(); } catch (Exception ignored) { } }
 }
