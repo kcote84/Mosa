@@ -32,6 +32,13 @@
 - Les preuves de validation sur appareil, les mesures et les métadonnées des foyers restent dans les fichiers locaux exclus de Git.
 - Le correctif 0.4.2 traite la commande urgente dès le manifeste authentifié, avant les téléchargements de photos, et récupère une ancienne session d'installation bloquée avant d'attendre l'installateur.
 
+## Fondu du diaporama — 1er novembre 2026
+
+- Version 0.4.3 (code 16) : fondu d'une seconde, deux couches d'image au maximum, première photo affichée directement. Les bandes noires font partie du fondu afin de respecter les cadrages différents.
+- Le diaporama garde la photo courante pendant une synchronisation quand elle est encore autorisée. Un retrait invalide immédiatement les décodages en cours et retire la photo des deux couches, même pendant une transition.
+- Durée par défaut portée à 60 secondes côté serveur et Android; les réglages personnalisés existants restent conservés. Le cadre de validation reçoit explicitement le nouveau réglage.
+- 12 tests Android et 8 tests JavaScript réussis; compilations Android/PWA et lint Android terminés (0 erreur, 8 avertissements). Les preuves de contrôle sur appareil restent locales, hors du dépôt public.
+
 ## À vérifier avant les cadeaux
 
 Correctif de connexion PWA iPhone : formulaire bilingue de collage du lien dans l'app installée, validation de l'origine et du jeton, guide Safari/iPad avant consommation du lien. Les 8 tests unitaires passent. Dans le navigateur relié aux émulateurs, une adresse étrangère est refusée, une invitation fictive ouvre le bon compte membre sans module admin et la session reste active après rechargement. Le formulaire français et anglais est vérifié en largeur 390 px. La confirmation finale du maintien de session sur un iPhone physique reste une vérification utilisateur.

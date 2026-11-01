@@ -37,6 +37,7 @@ L'application consomme puis supprime le fichier de préparation. Son accès dura
 
 - Le nom du foyer, la langue et les destinataires sont corrects.
 - Les dix photos approuvées sont téléchargées; le compteur de la PWA le confirme.
+- Diaporama : 60 secondes par défaut, avec un fondu d'une seconde entre deux photos (Mosa 0.4.3+). La durée reste réglable depuis **Notre cadre**. Un changement de réglage par défaut ne remplace pas les préférences déjà enregistrées des autres cadres.
 - Redémarrage : Mosa se lance seul.
 - Sans Wi-Fi : les photos continuent. Attendre que le Wi-Fi soit réellement arrêté avant de tester un redémarrage.
 - Sur les réglages Wi-Fi : bouton bleu « Revenir aux photos » ou « Back to photos », y compris lorsque le clavier est ouvert.

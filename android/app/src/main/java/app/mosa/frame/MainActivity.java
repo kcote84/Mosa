@@ -29,6 +29,8 @@ import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +43,7 @@ public class MainActivity extends Activity {
     private FrameRealtime realtime;
     private FrameRemoteUpdate remoteUpdate;
     private FrameStore store; private JSONObject manifest; private SharedPreferences preferences;
-    private FrameLayout root; private ImageView photoView; private LinearLayout welcome, controls; private View nightCover;
+    private FrameLayout root; private PhotoDisplay photoView; private LinearLayout welcome, controls; private View nightCover;
     private JSONArray photos = new JSONArray(); private int index = 0; private long imageGeneration = 0, awakeUntil = 0;
     private boolean alive = true, splash = true; private String status = "starting";
     private ConnectivityManager connectivity; private ConnectivityManager.NetworkCallback networkCallback;
@@ -60,7 +62,7 @@ public class MainActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); immersive();
         if (FrameNight.active(manifest, System.currentTimeMillis())) { WindowManager.LayoutParams p = getWindow().getAttributes(); p.screenBrightness = 0.01f; getWindow().setAttributes(p); }
         root = new FrameLayout(this); root.setBackgroundColor(Color.BLACK); setContentView(root);
-        photoView = new ImageView(this); photoView.setScaleType(ImageView.ScaleType.FIT_CENTER); root.addView(photoView, fill()); photoView.setOnClickListener(v -> toggleControls());
+        photoView = new PhotoDisplay(this); root.addView(photoView, fill()); photoView.setOnClickListener(v -> toggleControls());
         nightCover = new View(this); nightCover.setBackgroundColor(Color.BLACK); nightCover.setVisibility(View.GONE); root.addView(nightCover, fill());
         nightCover.setOnClickListener(v -> { awakeUntil = System.currentTimeMillis() + 60000; applyNight(); showControls(); });
         if (afterUpdate) { splash = false; loadManifest(manifest); handler.post(this::synchronize); }
@@ -147,29 +149,36 @@ public class MainActivity extends Activity {
                 edit.apply();
             }
         }
-        if (index >= photos.length()) index = 0;
-        // Drop the removed bitmap immediately, including a decoder still in flight.
-        ++imageGeneration; photoView.setImageDrawable(null);
+        Set<String> allowedIds = new HashSet<>();
+        String displayedId = photoView.currentId(); int retainedIndex = -1;
+        for (int i = 0; i < photos.length(); i++) {
+            JSONObject photo = photos.optJSONObject(i); if (photo == null) continue;
+            String id = photo.optString("id"); allowedIds.add(id); if (id.equals(displayedId)) retainedIndex = i;
+        }
+        if (retainedIndex >= 0) index = retainedIndex; else if (index >= photos.length()) index = 0;
+        // Invalidate decoders and removed layers immediately, but keep an unchanged photo visible during sync.
+        ++imageGeneration; photoView.retain(allowedIds);
         if (photos.length() == 0) showWelcome(false); else { if (welcome != null) { root.removeView(welcome); welcome = null; } showPhoto(); }
         if (controls != null) showControls(); scheduleSlide(); applyNight();
     }
     private void showPhoto() {
         if (photos.length() == 0 || !alive) return;
         try {
-            JSONObject photo = photos.getJSONObject(index); File file = store.photo(photo.getString("id"));
+            JSONObject photo = photos.getJSONObject(index); final String id = photo.getString("id"); File file = store.photo(id);
             final long generation = ++imageGeneration; final boolean cover = "cover".equals(photo.optString("fit"));
+            if (photoView.isShowing(id, cover)) return;
             images.execute(() -> {
                 BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true; BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
                 BitmapFactory.Options options = new BitmapFactory.Options(); options.inPreferredConfig = Bitmap.Config.RGB_565; options.inSampleSize = 1;
                 while (bounds.outWidth / (options.inSampleSize * 2) >= 1280 && bounds.outHeight / (options.inSampleSize * 2) >= 800) options.inSampleSize *= 2;
                 Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-                handler.post(() -> { if (!alive || generation != imageGeneration || bitmap == null) return; photoView.setScaleType(cover ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER); photoView.setImageBitmap(bitmap); });
+                handler.post(() -> { if (!alive || generation != imageGeneration || bitmap == null) return; photoView.show(bitmap, id, cover); });
             });
         } catch (Exception ignored) { }
     }
     private void scheduleSlide() {
         handler.removeCallbacks(advance); JSONObject settings = manifest == null ? null : manifest.optJSONObject("settings");
-        int seconds = settings == null ? 15 : settings.optInt("intervalSeconds", 15); handler.postDelayed(advance, Math.max(8, seconds) * 1000L);
+        int seconds = settings == null ? 60 : settings.optInt("intervalSeconds", 60); handler.postDelayed(advance, Math.max(8, seconds) * 1000L);
     }
     private void toggleControls() { if (controls != null) { root.removeView(controls); controls = null; } else showControls(); }
     private TimeZone frameTimeZone() {
