@@ -25,11 +25,11 @@ function IphoneGuide({ invitation, onContinue }) {
   </section>;
 }
 
-export default function Welcome({ langButton, error, busy, ready, invitation, guideIos, onContinue, onConnect, onLogout, hasSession }) {
+export default function Welcome({ langButton, error, busy, ready, invitation, guideIos, onContinue, onConnect, onLogout, hasSession, sharedPending }) {
   const t = useText(); const [link, setLink] = useState('');
   return <div className="welcome-screen"><div className="welcome-top"><span className="wordmark">Mosa<span className="brand-dot">.</span></span>{langButton}</div>
     <div className="welcome-card"><Mascot/><h1>Mosa</h1><p className="slogan">Nos moments, chez vous.</p><p className="slogan english">Our moments, in your home.</p><div className="welcome-divider"/>
-      <ErrorNotice error={error}/>
+      <ErrorNotice error={error}/>{sharedPending && <p className="notice" role="status">{t('Tes photos partagées attendent sur ce téléphone pendant une heure. Connecte-toi ici pour choisir les foyers et les envoyer.', 'Your shared photos are waiting on this phone for one hour. Sign in here to choose the households and send them.')}</p>}
       {guideIos && invitation ? <IphoneGuide invitation={invitation} onContinue={onContinue}/> : busy ? <p role="status">{t('On prépare votre album…', 'Getting your album ready…')}</p> : <>
         <h2>{t('Bienvenue dans la famille', 'Welcome to the family')}</h2>
         <p>{t('Copie le lien personnel envoyé par Kev et colle-le ici. Aucun mot de passe à retenir.', 'Copy the personal link Kev sent you and paste it here. No password to remember.')}</p>

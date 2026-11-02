@@ -3,6 +3,12 @@ import { X, LoaderCircle, AlertCircle } from 'lucide-react';
 export const LanguageContext = createContext('fr');
 export function useText() { const lang = useContext(LanguageContext); return (fr, en) => lang === 'en' ? en : fr; }
 const errors = {
+  share_empty: ['Aucune photo reçue. Depuis ta galerie, partage les images elles-mêmes vers Mosa, plutôt qu’un lien. Tu peux aussi utiliser « Choisir des photos ».', 'No photos received. From your gallery, share the actual images to Mosa rather than a link. You can also use “Choose photos”.'],
+  share_too_many: ['Partage au maximum 50 photos à la fois. Reprends une sélection plus petite dans ta galerie.', 'Share up to 50 photos at a time. Select a smaller batch in your gallery.'],
+  share_too_large: ['Ce lot est trop volumineux pour le partage. Sélectionne moins de photos à la fois dans ta galerie.', 'This batch is too large to share. Select fewer photos at a time in your gallery.'],
+  share_storage_full: ['Le téléphone ne peut pas garder ce lot. Termine les autres partages ouverts dans Mosa, ou utilise « Choisir des photos ».', 'Your phone cannot keep this batch. Finish other shares open in Mosa, or use “Choose photos”.'],
+  share_expired: ['Ce partage a déjà été ouvert ou a expiré. Sélectionne de nouveau les photos dans ta galerie, puis Partager → Mosa.', 'This share has already been opened or has expired. Select the photos again in your gallery, then Share → Mosa.'],
+  share_unavailable: ['Mosa n’a pas pu récupérer les photos. Mets Mosa à jour depuis l’accueil, puis réessaie le partage depuis ta galerie.', 'Mosa could not retrieve the photos. Update Mosa from Home, then share again from your gallery.'],
   paste_invitation: ['Colle le lien personnel Mosa au complet, tel que Kev te l’a envoyé.', 'Paste the complete personal Mosa link exactly as Kev sent it.'],
   choose_frames: ['Choisis au moins un cadre.', 'Choose at least one frame.'],
   update_bootstrap_required: ['Ce cadre doit recevoir une première mise à jour depuis son menu Mises à jour.', 'This frame needs its first update from its Updates menu.'],
